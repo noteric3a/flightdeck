@@ -96,7 +96,7 @@ def sample_flights(f: Filters, epoch=None):
     epoch = now if epoch is None else epoch
     # Illustrative trips, not the real schedules for these callsigns.
     journeys = [
-        ("ORD", "HND", "B787-9", 510, 225),
+        ("PHL", "ORD", "B787-9", 510, 225),
         ("ATL", "JFK", "E175", 75, 45),
         ("MDW", "DEN", "B737-800", 35, 100),
         ("DFW", "LAX", "A321", 130, 25),

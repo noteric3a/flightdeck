@@ -1,0 +1,12 @@
+.git
+.openai
+.env
+.venv
+__pycache__
+.pytest_cache
+data
+firmware
+tests
+docs
+node_modules
+*.zip

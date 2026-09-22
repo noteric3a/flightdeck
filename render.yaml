@@ -1,0 +1,29 @@
+# Optional cloud deployment. The service and persistent disk incur provider charges.
+# Review Render's displayed price before creating resources.
+services:
+  - type: web
+    name: flightdeck
+    runtime: docker
+    plan: starter
+    region: ohio
+    healthCheckPath: /api/health
+    numInstances: 1
+    disk:
+      name: flightdeck-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: DEVICE_TOKEN
+        generateValue: true
+      - key: FLIGHT_PROVIDER
+        value: demo
+      - key: DATABASE_PATH
+        value: /app/data/flightdeck.db
+      - key: OPENSKY_CLIENT_ID
+        sync: false
+      - key: OPENSKY_CLIENT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

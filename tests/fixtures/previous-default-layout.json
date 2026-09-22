@@ -1,0 +1,141 @@
+{
+  "width": 64,
+  "height": 32,
+  "brightness": 96,
+  "units": "aviation",
+  "background": "#000000",
+  "elements": [
+    {
+      "id": "logo",
+      "field": "logo",
+      "x": 2,
+      "y": 2,
+      "width": 20,
+      "height": 20,
+      "scale": 1,
+      "visible": true,
+      "color": "#50c8ff"
+    },
+    {
+      "id": "callsign",
+      "field": "callsign",
+      "x": 24,
+      "y": 1,
+      "width": 39,
+      "height": 5,
+      "scale": 1,
+      "visible": true,
+      "color": "#ffffff"
+    },
+    {
+      "id": "airline",
+      "field": "airline",
+      "x": 24,
+      "y": 8,
+      "width": 39,
+      "height": 5,
+      "scale": 1,
+      "visible": false,
+      "color": "#50c8ff"
+    },
+    {
+      "id": "altitude",
+      "field": "altitude",
+      "x": 24,
+      "y": 8,
+      "width": 39,
+      "height": 5,
+      "scale": 1,
+      "visible": false,
+      "color": "#ffffff"
+    },
+    {
+      "id": "speed",
+      "field": "speed",
+      "x": 24,
+      "y": 15,
+      "width": 39,
+      "height": 5,
+      "scale": 1,
+      "visible": false,
+      "color": "#f4b860"
+    },
+    {
+      "id": "distance",
+      "field": "distance",
+      "x": 24,
+      "y": 15,
+      "width": 39,
+      "height": 5,
+      "scale": 1,
+      "visible": false,
+      "color": "#7a99ad"
+    },
+    {
+      "id": "heading",
+      "field": "heading",
+      "x": 24,
+      "y": 15,
+      "width": 39,
+      "height": 5,
+      "scale": 1,
+      "visible": false,
+      "color": "#7a99ad"
+    },
+    {
+      "id": "vertical_rate",
+      "field": "vertical_rate",
+      "x": 24,
+      "y": 15,
+      "width": 39,
+      "height": 5,
+      "scale": 1,
+      "visible": false,
+      "color": "#9be0c3"
+    },
+    {
+      "id": "route",
+      "field": "route",
+      "x": 24,
+      "y": 8,
+      "width": 39,
+      "height": 5,
+      "scale": 1,
+      "visible": true,
+      "color": "#ffffff"
+    },
+    {
+      "id": "aircraft",
+      "field": "aircraft",
+      "x": 24,
+      "y": 15,
+      "width": 39,
+      "height": 5,
+      "scale": 1,
+      "visible": true,
+      "color": "#50c8ff"
+    },
+    {
+      "id": "eta",
+      "field": "eta",
+      "x": 2,
+      "y": 24,
+      "width": 23,
+      "height": 5,
+      "scale": 1,
+      "visible": true,
+      "color": "#ffffff"
+    },
+    {
+      "id": "progress",
+      "field": "progress",
+      "x": 28,
+      "y": 23,
+      "width": 34,
+      "height": 7,
+      "scale": 1,
+      "visible": true,
+      "color": "#50c8ff"
+    }
+  ]
+}

@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b1017" />
+    <meta
+      name="description"
+      content="Design a pixel-perfect flight display. Arrange your airline logo, choose flight stats, and connect your ESP32."
+    />
+    <title>Flightdeck — Display studio</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Flightdeck home"
+        ><span class="brand-mark">F<span>↗</span></span
+        >flightdeck<span class="brand-divider"></span
+        ><span class="brand-sub">DISPLAY STUDIO</span></a
+      >
+      <div class="top-actions">
+        <span class="badge" id="source-badge">SAMPLE DATA</span
+        ><button id="connection-open" class="button">
+          Connect service <span>↗</span>
+        </button>
+      </div>
+    </header>
+    <main>
+      <section class="page-heading">
+        <div>
+          <p class="eyebrow">YOUR SKY. YOUR SCREEN.</p>
+          <h1>Make it your flight display.</h1>
+          <p class="subtitle">
+            Drag a layer. Choose your stats. See every pixel.
+          </p>
+        </div>
+        <div class="heading-actions">
+          <button id="export" class="button">↓ Export layout</button
+          ><button id="save" class="button primary">Save layout</button>
+        </div>
+      </section>
+      <section class="workspace" aria-label="Display editor">
+        <aside class="layers-panel panel">
+          <div class="panel-title">
+            <h2>Display layers</h2>
+            <span id="layer-count" class="muted">6 / 12</span>
+          </div>
+          <p class="panel-note">Select a layer to adjust it.</p>
+          <div id="layers" class="layers"></div>
+          <div class="layers-bottom">
+            <span class="tiny-label">PANEL</span
+            ><strong>64 × 32 <span>HUB75</span></strong>
+            <p>Each step is one LED pixel.</p>
+          </div>
+        </aside>
+        <section class="canvas-panel panel">
+          <div class="canvas-toolbar">
+            <label class="inline-control"
+              >Layout
+              <select id="preset">
+                <option value="custom">Custom</option>
+                <option value="journey">Default · 20px logo</option>
+                <option value="large">Large logo · 28px</option>
+                <option value="classic">Classic</option>
+                <option value="right">Logo on right · 20px</option>
+                <option value="minimal">Minimal</option>
+              </select></label
+            >
+            <div class="toolbar-actions">
+              <button
+                id="undo"
+                class="icon-button"
+                aria-label="Undo"
+                title="Undo (Ctrl/⌘ Z)"
+              >
+                ↶</button
+              ><button
+                id="redo"
+                class="icon-button"
+                aria-label="Redo"
+                title="Redo (Ctrl/⌘ Shift Z)"
+              >
+                ↷</button
+              ><label class="check-label"
+                ><input id="grid" type="checkbox" checked /> LED grid</label
+              >
+            </div>
+          </div>
+          <div class="canvas-stage">
+            <div class="screen-caption">
+              <span>DISPLAY PREVIEW</span><span>64 × 32 PX</span>
+            </div>
+            <div class="matrix-shell">
+              <div id="matrix-wrap" class="matrix-wrap">
+                <canvas
+                  id="matrix"
+                  width="640"
+                  height="320"
+                  aria-label="Flight display pixel preview"
+                ></canvas>
+                <div id="handles"></div>
+              </div>
+            </div>
+            <div class="canvas-footnote">
+              <span id="selection-hint"
+                >Drag a layer or use the arrow keys.</span
+              ><span id="cursor-position">X 02 · Y 02</span>
+            </div>
+          </div>
+          <div class="preview-bar">
+            <div>
+              <span class="tiny-label">PREVIEW FLIGHT</span
+              ><strong id="preview-callsign">UAL247</strong
+              ><span class="muted" id="preview-airline">United</span>
+            </div>
+            <div class="preview-actions">
+              <label class="check-label"
+                ><input id="rotate" type="checkbox" /> Rotate</label
+              ><button class="button compact" id="next-flight">
+                Next flight →
+              </button>
+            </div>
+          </div>
+          <div class="journey-details">
+            <p id="journey-summary"></p>
+            <p id="journey-source" class="panel-note"></p>
+          </div>
+          <div
+            id="layout-warning"
+            class="layout-warning"
+            role="status"
+            hidden
+          ></div>
+        </section>
+        <aside class="inspector panel">
+          <div class="panel-title">
+            <h2 id="inspector-name">Airline logo</h2>
+            <span class="tag">LAYER</span>
+          </div>
+          <div class="inspector-body">
+            <div class="field-row">
+              <label
+                >X position<input
+                  id="element-x"
+                  type="number"
+                  min="0"
+                  max="63" /></label
+              ><label
+                >Y position<input id="element-y" type="number" min="0" max="31"
+              /></label>
+            </div>
+            <div class="field-row">
+              <label
+                >Width<input
+                  id="element-width"
+                  type="number"
+                  min="1"
+                  max="64" /></label
+              ><label
+                >Height<input
+                  id="element-height"
+                  type="number"
+                  min="1"
+                  max="32"
+              /></label>
+            </div>
+            <label id="text-scale-label"
+              >Text size<select id="element-scale">
+                <option value="1">Small · 3 × 5</option>
+                <option value="2">Large · 6 × 10</option>
+                <option value="3">Extra large · 9 × 15</option>
+              </select></label
+            ><label class="color-control"
+              ><span id="element-color-label">Color</span><input
+                id="element-color"
+                type="color"
+                value="#50c8ff"
+              /><span id="color-value">#50C8FF</span></label
+            >
+            <div id="progress-options" hidden>
+              <p class="panel-note">Green shows completed progress, white shows the remaining journey. The plane marks the boundary. Progress follows elapsed flight time against the arrival estimate.</p>
+            </div>
+            <div id="logo-options">
+              <label class="button upload-label"
+                >↑ Upload airline logo<input
+                  id="logo-upload"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  hidden
+              /></label>
+              <p class="panel-note">
+                Default display size: 20 × 20 pixels. Images fit a 28 × 28 source bitmap and scale to your layer.
+                United, Delta, American, and Southwest pixel logos are included.
+              </p>
+              <button id="restore-logo" class="text-button">Use bundled pixel logo</button>
+              <button id="remove-logo" class="text-button">
+                Use airline initials
+              </button>
+              <a class="text-button" href="/airline-pixel-logos.zip" download>Download pixel logos ↓</a>
+            </div>
+            <div class="separator"></div>
+            <label
+              >Display units<select id="units">
+                <option value="aviation">Aviation · ft, knots, NM</option>
+                <option value="metric">Metric · m, km/h, km</option>
+              </select></label
+            ><label class="range-label"
+              >Brightness <output id="brightness-value">38%</output
+              ><input id="brightness" type="range" min="1" max="255" value="96"
+            /></label>
+            <p class="panel-note">
+              Brightness applies to the LED panel. Preview colors stay readable.
+            </p>
+            <button id="export-frame" class="button full">
+              ↓ Export pixel preview</button
+            ><label class="text-button upload-label"
+              >Import a saved layout<input
+                id="import-layout"
+                type="file"
+                accept="application/json,.json"
+                hidden
+            /></label>
+          </div>
+        </aside>
+      </section>
+      <section class="lower-grid">
+        <div class="panel flights-panel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">FLIGHT FEED</p>
+              <h2>In your airspace <span id="flight-count">5</span></h2>
+            </div>
+            <button class="button compact" id="refresh">↻ Refresh</button>
+          </div>
+          <div class="feed-status" id="feed-status">
+            Sample flights · no API key needed
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Flight</th>
+                  <th>Airline</th>
+                  <th>Altitude</th>
+                  <th>Speed</th>
+                  <th>Distance</th>
+                  <th><span class="sr-only">Preview</span></th>
+                </tr>
+              </thead>
+              <tbody id="flights"></tbody>
+            </table>
+          </div>
+          <div id="flight-empty" class="empty" hidden>
+            No flights match these filters. Try a wider radius.
+          </div>
+          <div class="table-footer">
+            <span id="device-status">ESP32 · no service connected</span
+            ><span>Preview selection stays in the editor</span>
+          </div>
+        </div>
+        <form id="filters-form" class="panel filters-panel">
+          <div class="panel-title">
+            <h2>Flight filters</h2>
+            <span class="tag">AIRSPACE</span>
+          </div>
+          <div class="filters-body">
+            <div class="field-row">
+              <label
+                >Latitude<input
+                  id="latitude"
+                  type="number"
+                  step="any"
+                  min="-90"
+                  max="90"
+                  required /></label
+              ><label
+                >Longitude<input
+                  id="longitude"
+                  type="number"
+                  step="any"
+                  min="-180"
+                  max="180"
+                  required
+              /></label>
+            </div>
+            <label class="range-label"
+              >Search radius <output id="radius-value">100 km</output
+              ><input id="radius" type="range" min="1" max="250" value="100"
+            /></label>
+            <div class="field-row">
+              <label
+                >Min altitude · ft<input
+                  id="min-altitude"
+                  type="number"
+                  min="0"
+                  max="60000"
+                  step="100"
+                  required /></label
+              ><label
+                >Max altitude · ft<input
+                  id="max-altitude"
+                  type="number"
+                  min="0"
+                  max="60000"
+                  step="100"
+                  required
+              /></label>
+            </div>
+            <div class="field-row">
+              <label
+                >Min speed · knots<input
+                  id="min-speed"
+                  type="number"
+                  min="0"
+                  max="2000"
+                  required /></label
+              ><label
+                >Order by<select id="sort">
+                  <option value="distance">Nearest first</option>
+                  <option value="altitude">Highest first</option>
+                </select></label
+              >
+            </div>
+            <label
+              >Airline ICAO codes<input
+                id="airlines"
+                placeholder="All airlines · e.g. UAL, DAL"
+                maxlength="199"
+                pattern="[a-zA-Z, ]*" /></label
+            ><label
+              >Callsign contains<input
+                id="callsign-filter"
+                placeholder="Any flight"
+                maxlength="8"
+                pattern="[a-zA-Z0-9 ]*" /></label
+            ><label class="check-label"
+              ><input id="include-ground" type="checkbox" /> Include aircraft on
+              the ground</label
+            ><button class="button full" type="submit">Apply filters</button>
+          </div>
+        </form>
+      </section>
+      <footer>
+        <span
+          >flightdeck <span class="muted">/</span> built for the sky above
+          you</span
+        ><a href="/flightdeck-source.zip" download
+          >Download Python service, firmware &amp; setup ↗</a
+        >
+      </footer>
+    </main>
+    <dialog id="connection-dialog">
+      <form id="connection-form">
+        <div class="dialog-head">
+          <h2>Connect your flight service</h2>
+          <button
+            type="button"
+            class="icon-button"
+            id="connection-close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <p>
+          Run the included Python service, then connect this editor. You can
+          also open the editor directly from that service.
+        </p>
+        <label
+          >Service URL<input
+            id="service-url"
+            type="url"
+            placeholder="https://your-flight-service.example"
+            required /></label
+        ><label
+          >Admin token<input
+            id="admin-token"
+            type="password"
+            autocomplete="off"
+            placeholder="ADMIN_TOKEN from your .env"
+            required
+        /></label>
+        <p class="panel-note">
+          The token stays in memory for this session. A hosted editor needs an
+          HTTPS service that allows this editor’s origin.
+        </p>
+        <p id="connection-error" class="error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" class="button" id="disconnect">
+            Use sample data</button
+          ><button class="button primary" type="submit">Connect</button>
+        </div>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script type="module" src="/app.mjs"></script>
+  </body>
+</html>

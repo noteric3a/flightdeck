@@ -1,0 +1,23 @@
+services:
+  flightdeck:
+    build: .
+    init: true
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 8000
+      DATABASE_PATH: /app/data/flightdeck.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - flightdeck-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+volumes:
+  flightdeck-data:

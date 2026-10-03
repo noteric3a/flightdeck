@@ -8,15 +8,18 @@ import {
   renderPixels,
   overlaps,
   sampleFlights,
+  rgb565,
 } from "./core.mjs";
 import { validateConfig } from "./validate.mjs";
 import { layoutPreset, upgradeJourneyDraft, upgradeLegacyDraft } from "./presets.mjs";
 import { journeyState, remainingText } from "./journey.mjs";
+import { FlightdeckSerial, LivePreview } from "./serial.mjs";
+import { encodeLayout, decodeLayout } from "./device-codec.mjs";
 
 const $ = (id) => document.getElementById(id);
 const sampleEpoch = Date.now() / 1000;
 const [defaults, font] = await Promise.all(
-  ["/defaults.json", "/font.json"].map(async (path) => {
+  ["./defaults.json", "./font.json"].map(async (path) => {
     const r = await fetch(path);
     if (!r.ok)
       throw new Error("Could not load display assets. Refresh this page.");
@@ -30,10 +33,9 @@ let config = clone(defaults),
   undo = [],
   redo = [],
   connected = null,
-  revision = 0,
+  deviceInfo = null,
   feedState = "fresh",
   detailsState = "sample",
-  requestSerial = 0,
   toastTimer,
   drag = null,
   dirty = false;
@@ -53,6 +55,24 @@ const safeStorage = {
       return false;
     }
   },
+};
+const device = new FlightdeckSerial();
+const preview = new LivePreview(device, error => {
+  $("live-preview").checked = false;
+  notify(error.message);
+});
+let connecting = false, refreshing = false;
+device.onDisconnect = () => {
+  connected = null;
+  preview.enabled = false;
+  preview.pending = null;
+  $("live-preview").checked = false;
+  $("connection-open").textContent = "Connect ESP32";
+  $("source-badge").classList.remove("live");
+  $("source-badge").textContent = "SAMPLE DATA";
+  $("device-status").textContent = "ESP32 · USB disconnected";
+  $("include-ground").disabled = false;
+  if (!connecting) refresh();
 };
 try {
   const saved = safeStorage.get("flightdeck.draft.v4");
@@ -220,6 +240,7 @@ function paint() {
       sy - gap,
     );
   });
+  preview.submit(rgb565(pixels), config.layout.brightness);
   const f = currentFlight();
   $("preview-callsign").textContent = f?.callsign || "No flight";
   $("preview-airline").textContent = f?.airline_name || "";
@@ -236,9 +257,9 @@ function paint() {
     : f.details_source === "aeroapi"
       ? "FlightAware API · estimated progress by elapsed flight time"
       : detailsState === "not_configured"
-        ? "Live airports need a FlightAware AeroAPI key configured on your Python service."
+        ? "Set your FlightAware AeroAPI key in ESP32 settings."
         : detailsState === "unavailable"
-          ? "Flight route API temporarily unavailable. The service will retry automatically."
+          ? "Flight details are temporarily unavailable. The ESP32 will retry automatically."
           : detailsState === "not_requested"
             ? "Enable a flight details layer to request API route data."
             : "The API has no matching route or arrival estimate for this flight.";
@@ -388,7 +409,7 @@ function renderFlights() {
   $("flight-count").textContent = flights.length;
   $("flight-empty").hidden = flights.length > 0;
   $("flight-empty").textContent = ["stale", "unavailable"].includes(feedState)
-    ? "No usable flight data right now. The service will retry automatically."
+    ? "No usable flight data right now. The ESP32 will retry automatically."
     : "No flights match these filters. Try a wider radius.";
   for (const flight of flights) {
     const tr = node("tr", null, flight.icao24 === f?.icao24 ? "active" : "");
@@ -446,49 +467,14 @@ function render() {
   renderFlights();
   $("save").textContent = connected
     ? dirty
-      ? "Save to display"
-      : "Display saved"
+      ? "Save to ESP32"
+      : "Saved to ESP32"
     : "Save layout";
 }
 
-async function api(path, options = {}, connection = connected) {
-  if (!connection) throw new Error("Connect your Python service first.");
-  let response;
-  try {
-    response = await fetch(connection.url + path, {
-      ...options,
-      headers: {
-        Authorization: "Bearer " + connection.token,
-        ...(options.body ? { "Content-Type": "application/json" } : {}),
-        ...options.headers,
-      },
-      signal: AbortSignal.timeout(25000),
-    });
-  } catch {
-    throw new Error(
-      "Service unreachable. Check the URL, HTTPS, and allowed editor origin.",
-    );
-  }
-  let body;
-  try {
-    body = await response.json();
-  } catch {
-    throw new Error("This address did not return a Flightdeck API response.");
-  }
-  if (!response.ok) {
-    const detail =
-      typeof body.detail === "string"
-        ? body.detail
-        : response.status === 422
-          ? "The service rejected the settings. Check your layout and filters."
-          : `Service returned ${response.status}.`;
-    throw new Error(detail);
-  }
-  return body;
-}
 async function refresh() {
-  const serial = ++requestSerial;
-  if (!connected) {
+  if (refreshing || connecting) return;
+  if (!connected || !device.connected) {
     flights = filterFlights(sampleFlights(config.filters, Date.now() / 1000, sampleEpoch), config.filters);
     feedState = "fresh";
     detailsState = "sample";
@@ -497,45 +483,34 @@ async function refresh() {
     render();
     return;
   }
+  refreshing = true;
   $("refresh").disabled = true;
   try {
-    const [result, status] = await Promise.all([
-      api(`/api/preview?flight_id=${encodeURIComponent(flightId)}`, { method: "POST", body: JSON.stringify(config) }),
-      api("/api/status"),
-    ]);
-    if (serial !== requestSerial) return;
-    flights = result.flights;
-    feedState = result.status;
-    detailsState = result.details_status || "unknown";
-    const source =
-      result.source === "demo" ? "Service sample flights" : "OpenSky";
-    $("source-badge").textContent =
-      result.source === "demo" ? "SERVICE DEMO" : "LIVE SERVICE";
-    $("feed-status").textContent =
-      result.status === "unavailable"
-        ? result.error
-        : result.status === "stale"
-          ? `${source} · stale data (${Math.round(result.cache_age_seconds)}s) · ${result.error}`
-          : `${source} · ${result.flights.length} matching flights · cache ${Math.round(result.cache_age_seconds)}s old`;
-    $("feed-status").classList.toggle(
-      "error",
-      ["unavailable", "stale"].includes(result.status),
-    );
-    const device = status.devices.find((d) => d.online) || status.devices[0];
-    $("device-status").textContent = device
-      ? `ESP32 ${device.id} · ${device.online ? "online" : "offline"} · acknowledged layout ${device.acknowledged_revision || "pending"}`
-      : "ESP32 · waiting for first connection";
+    const result = await device.command("status");
+    if (!connected) return;
+    deviceInfo = result;
+    const clockOffset = result.mode === "demo" ? Date.now()/1000 - result.clock : 0;
+    const received = (result.flights || []).map(f => {
+      if (!clockOffset) return f;
+      const adjusted = {...f};
+      for (const key of ["position_time", "departure_time", "arrival_time"])
+        if (Number.isFinite(f[key])) adjusted[key] += clockOffset;
+      return adjusted;
+    });
+    flights = filterFlights(received, config.filters);
+    feedState = result.stale ? "stale" : "fresh";
+    detailsState = result.mode === "demo" ? "sample" : "aeroapi";
+    $("source-badge").textContent = result.mode === "demo" ? "ESP32 DEMO" : "ESP32 LIVE";
+    $("feed-status").textContent = `${result.message} · ${flights.length} flights · ${result.requests_this_hour}/${result.max_per_hour} requests this UTC hour`;
+    $("feed-status").classList.toggle("error", !!result.stale);
+    $("device-status").textContent = `ESP32 · USB connected · Wi-Fi ${result.wifi_connected ? result.ip : "offline"}${result.preview ? " · live preview" : " · autonomous display"}${result.panel_ready ? "" : " · PANEL INITIALIZATION FAILED"}${result.storage_ready ? "" : " · FLASH STORAGE UNAVAILABLE"}`;
+    $("include-ground").disabled = result.mode === "live";
     render();
   } catch (error) {
-    if (serial !== requestSerial) return;
-    feedState = "unavailable";
-    flights = [];
-    $("feed-status").textContent = error.message;
-    $("feed-status").classList.add("error");
-    $("device-status").textContent = "ESP32 · service unreachable";
-    render();
+    if (connected) { $("feed-status").textContent = error.message; $("feed-status").classList.add("error"); }
   } finally {
-    if (serial === requestSerial) $("refresh").disabled = false;
+    refreshing = false;
+    $("refresh").disabled = false;
   }
 }
 for (const key of ["x", "y", "width", "height", "scale"])
@@ -672,35 +647,25 @@ $("filters-form").onsubmit = (event) => {
   );
 };
 $("save").onclick = async () => {
+  $("save").disabled = true;
   try {
     validateConfig(config);
     if (connected) {
-      $("save").disabled = true;
       const submitted = JSON.stringify(config);
-      const result = await api("/api/config", {
-        method: "PUT",
-        headers: { "If-Match": String(revision) },
-        body: submitted,
-      });
-      revision = result.revision;
+      const payload = encodeLayout(config);
+      await preview.stop();
+      $("live-preview").checked = false;
+      await device.upload("layout", payload);
       dirty = JSON.stringify(config) !== submitted;
-      notify(
-        `Layout ${revision} saved. The ESP32 picks it up on its next poll.`,
-      );
+      notify("Saved on ESP32. It now renders this layout itself, including after restart.");
+      await refresh();
     } else {
       const saved = persist();
-      notify(
-        saved
-          ? "Layout saved in this browser. Export a copy to keep it."
-          : "Browser storage is unavailable. Use Export layout to keep your work.",
-      );
+      notify(saved ? "Layout saved in this browser. Connect ESP32 to save it on the board." : "Use Export layout to keep your work.");
     }
     render();
-  } catch (error) {
-    notify(error.message);
-  } finally {
-    $("save").disabled = false;
-  }
+  } catch (error) { notify(error.message); }
+  finally { $("save").disabled = false; }
 };
 function download(blob, filename) {
   const url = URL.createObjectURL(blob),
@@ -817,74 +782,104 @@ $("remove-logo").onclick = () => {
   const code = currentFlight()?.airline_code;
   if (code) mutate(() => delete config.logos[code]);
 };
-$("connection-open").onclick = () => {
-  $("service-url").value =
-    connected?.url ||
-    safeStorage.get("flightdeck.service-url") ||
-    location.origin;
+function populateSettings() {
+  const info = deviceInfo || {};
+  $("wifi-ssid").value = info.ssid || "";
+  $("wifi-password").value = "";
+  $("aeroapi-key").value = "";
+  $("open-network").checked = false;
+  $("device-mode").value = info.mode || "demo";
+  $("poll-seconds").value = info.poll_seconds || 300;
+  $("request-limit").value = info.max_per_hour || 24;
+  $("credential-state").textContent = `Wi-Fi password ${info.has_password ? "saved" : "not saved"} · AeroAPI key ${info.has_api_key ? "saved" : "not saved"}. Blank fields keep saved values.`;
   $("connection-error").textContent = "";
-  $("connection-dialog").showModal();
+}
+async function loadBoardLayout() {
+  await preview.stop(); $("live-preview").checked = false;
+  const next = decodeLayout(await device.downloadLayout());
+  checkpoint(); config = next; selected = config.layout.elements[0].id; dirty = false;
+  persist(); renderFilters(); render();
+}
+async function finishConnection(info) {
+  deviceInfo = info; connected = device;
+  const identity = device.port.getInfo();
+  safeStorage.set("flightdeck.usb-device", JSON.stringify(identity));
+  $("source-badge").classList.add("live");
+  $("connection-open").textContent = "ESP32 settings";
+  if (!dirty) await loadBoardLayout();
+  populateSettings();
+}
+$("connection-open").onclick = async () => {
+  if (connecting) return;
+  if (device.connected) { populateSettings(); $("connection-dialog").showModal(); return; }
+  connecting = true;
+  try {
+    const info = await device.choose();
+    await finishConnection(info);
+    $("connection-dialog").showModal();
+    notify("ESP32 connected over USB. Enable Live on matrix to preview edits.");
+  } catch (error) { await device.close(); notify(error.name === "NotFoundError" ? "No USB port selected." : error.message); }
+  finally { connecting = false; await refresh(); }
 };
 $("connection-close").onclick = () => $("connection-dialog").close();
-$("connection-form").onsubmit = async (event) => {
+$("connection-dialog").addEventListener("close", () => { $("wifi-password").value = ""; $("aeroapi-key").value = ""; });
+$("connection-form").onsubmit = async event => {
   event.preventDefault();
-  $("connection-error").textContent = "";
-  const button = event.submitter;
-  button.disabled = true;
+  const button = event.submitter; button.disabled = true;
   try {
-    const url = new URL($("service-url").value);
-    if (
-      !["http:", "https:"].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash
-    )
-      throw new Error(
-        "Use an HTTP or HTTPS origin without credentials or a query.",
-      );
-    if (url.pathname !== "/")
-      throw new Error("Enter only the service origin, without an API path.");
-    if (location.protocol === "https:" && url.protocol !== "https:")
-      throw new Error(
-        "Use an HTTPS service here, or open the editor directly from your local service.",
-      );
-    const candidate = { url: url.origin, token: $("admin-token").value.trim() };
-    const result = await api("/api/config", {}, candidate);
-    validateConfig(result.config);
-    checkpoint();
-    connected = candidate;
-    revision = result.revision;
-    config = validateConfig(upgradeJourneyDraft(result.config, defaults));
-    selected = config.layout.elements[0].id;
-    dirty = JSON.stringify(config) !== JSON.stringify(result.config);
-    safeStorage.set("flightdeck.service-url", candidate.url);
-    $("admin-token").value = "";
-    $("source-badge").classList.add("live");
-    $("connection-open").textContent = "Service settings";
+    const ssid = $("wifi-ssid").value;
+    const fields = {ssid, mode: $("device-mode").value, poll_seconds: Number($("poll-seconds").value), max_per_hour: Number($("request-limit").value)};
+    const password = $("wifi-password").value, apiKey = $("aeroapi-key").value.trim();
+    if (password || $("open-network").checked) fields.password = $("open-network").checked ? "" : password;
+    else if (ssid !== deviceInfo?.ssid) throw new Error("Enter the new network's password, or select Open network.");
+    if (apiKey) fields.api_key = apiKey;
+    deviceInfo = await device.command("configure", fields);
+    $("wifi-password").value = ""; $("aeroapi-key").value = "";
     $("connection-dialog").close();
-    persist();
-    renderFilters();
+    notify("Settings saved on ESP32. Wi-Fi connects in the background.");
     await refresh();
-    notify("Connected. The saved display layout is loaded.");
-  } catch (error) {
-    $("connection-error").textContent = error.message;
-  } finally {
-    button.disabled = false;
-  }
+  } catch (error) { $("connection-error").textContent = error.message; }
+  finally { button.disabled = false; }
 };
-$("disconnect").onclick = () => {
-  connected = null;
-  requestSerial++;
-  $("refresh").disabled = false;
-  $("admin-token").value = "";
-  $("connection-dialog").close();
-  $("source-badge").textContent = "SAMPLE DATA";
-  $("source-badge").classList.remove("live");
-  $("connection-open").textContent = "Connect service ↗";
-  $("device-status").textContent = "ESP32 · no service connected";
-  refresh();
-  notify("Sample mode is ready. Your layout is kept.");
+$("live-preview").onchange = async () => {
+  try {
+    if ($("live-preview").checked) {
+      if (!device.connected) throw new Error("Connect your ESP32 first.");
+      preview.enabled = true; paint();
+    } else await preview.stop();
+  } catch (error) { $("live-preview").checked = false; notify(error.message); }
+};
+$("load-board-layout").onclick = async () => {
+  try { await loadBoardLayout(); await refresh(); notify("Saved ESP32 layout loaded. Undo restores your prior draft."); }
+  catch (error) { notify(error.message); }
+};
+$("forget-credentials").onclick = async () => {
+  try {
+    deviceInfo = await device.command("forget_credentials"); populateSettings(); await refresh();
+    notify("Saved Wi-Fi and AeroAPI credentials cleared. ESP32 is in demo mode.");
+  } catch (error) { $("connection-error").textContent = error.message; }
+};
+$("disconnect").onclick = async () => {
+  try { await preview.stop(); } catch { /* Unplugged. */ }
+  await device.close(); $("connection-dialog").close();
+  notify("USB released. The powered ESP32 continues with its saved layout and mode.");
 };
 renderFilters();
 await refresh();
+// Only reconnect a previously selected port. Never probe arbitrary serial devices.
+async function reconnectRemembered() {
+  if (!device.serial || connecting || device.connected) return;
+  let identity; try { identity = JSON.parse(safeStorage.get("flightdeck.usb-device")); } catch { return; }
+  if (!identity || identity.usbVendorId == null) return;
+  connecting = true;
+  try {
+    const ports = (await device.serial.getPorts()).filter(port => {
+      const info = port.getInfo();
+      return info.usbVendorId === identity.usbVendorId && info.usbProductId === identity.usbProductId;
+    });
+    if (ports.length === 1) await finishConnection(await device.open(ports[0]));
+  } catch (error) { await device.close(); notify(error.message); }
+  finally { connecting = false; await refresh(); }
+}
+if (device.serial) { device.serial.addEventListener("connect", reconnectRemembered); await reconnectRemembered(); }
+else $("device-status").textContent = "USB setup requires desktop Chrome or Edge on HTTPS or localhost.";

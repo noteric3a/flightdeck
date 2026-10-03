@@ -1,149 +1,95 @@
-# Flightdeck Studio
+# Using Flightdeck without a flight-data server
 
-A Python flight service and a working visual editor for a 64 × 32 HUB75 flight display. Start in sample mode, arrange the screen, then connect OpenSky and an ESP32.
+## 1. Flash the autonomous firmware
 
-## Try the editor
+Install PlatformIO in VS Code (or `python3 -m pip install platformio==6.1.18`). Open the project. Your uploaded working test used a **Waveshare ESP32-S3 RGB Matrix N32R16**, so `esp32s3` is the default build profile, with the same Octal flash/PSRAM, FM6126A driver, clock phase and GPIO E setting.
 
-The published editor works immediately with clearly labeled sample flights. Drag the airline logo, text, or progress bar, use the checkboxes to show or hide stats, and try **Logo on right · 20px** in the Layout menu. Selected elements can also move with the arrow keys; hold Shift for five-pixel steps.
-
-The browser keeps a local draft. **Export layout** downloads the complete configuration, including imported logos. **Import a saved layout** restores it. The display preview uses the same bitmap font and rendering rules as the Python service.
-
-Pixel-style United (UAL), Delta (DAL), American (AAL), and Southwest (SWA) logo images are bundled. The default **Default · 20px logo** layout uses a **20 × 20** logo beside the flight number, departure/arrival airports (such as `ORD->HND`), and aircraft type. Time remaining and the flight progress bar sit below. Each is a movable, independently toggled layer. Completed progress is green (`#00ff00`), remaining progress is white (`#ffffff`), and a right-facing pixel plane divides them. The plane color is adjustable.
-
-The previous **Large logo · 28px** and **Classic** presets remain available. Altitude, speed, distance, airline name, heading, and vertical speed remain optional layers. Progress needs a box of at least 7 × 7 pixels to contain the plane. Long text triggers a clipping warning; resize or move the layer to make room.
-
-The default matches the supplied screenshot: the logo stays at `(2, 2)`, the right-hand text starts at column 27 on rows 2, 10, and 17, and the progress bar starts at `(27, 23)`. Time remaining stays at `(2, 24)`. Text boxes allow room for longer API identifiers while keeping that alignment. Fresh editors and new service installations use this layout. Untouched earlier defaults upgrade in the editor; custom drafts remain intact. Choose **Default · 20px logo** at any time to apply it, then **Save to display** for a connected device.
-
-Select **Airline logo** to upload a PNG, JPEG, or WebP for the preview airline, restore its bundled pixel logo, use initials, or download the image pack. Uploads fit a 28 × 28 source bitmap and scale to the layer size with nearest-neighbor sampling. Older 12 × 12 logos still import and render. Unknown airlines use initials. Draft migration preserves customized positions, filters, and uploaded images; untouched older factory layouts receive the new 20 × 20 arrangement. Custom drafts gain the four new layers hidden, ready to enable and place. Connecting an older service applies the same migration in the editor; **Save to display** is still required to commit changes. Importing a file always preserves its existing arrangement and adds missing journey layers hidden.
-
-The downloadable pack includes native 28 × 28 PNGs and a complete layout JSON for **Import a saved layout**. Images are pixel-art adaptations generated for this project; prompts and asset preparation are documented in `docs/pixel-logos.md`. A configuration supports bitmaps up to 32 × 32, at most 50 airline codes, and 8,192 logo pixels in total.
-
-## Run the complete service
-
-Requires Python 3.12 or newer. On macOS or Linux, open a terminal in this directory:
+From the repository root:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python scripts/setup_env.py
-python -m backend
+pio run -d firmware -e esp32s3 -t upload
 ```
 
-On Windows, activate with `.venv\Scripts\activate` after creating the environment.
+If PlatformIO cannot choose the correct USB port, list ports with `pio device list`, then append `--upload-port /dev/cu.usbmodem...` on macOS (or your Windows COM port). Use the USB port that exposes the firmware's USB CDC interface on the S3. Some boards have a separate UART programming connector.
 
-Open `http://localhost:8000`. Click **Connect service**, use `http://localhost:8000` for the service URL, and copy `ADMIN_TOKEN` from your local `.env` file. The token stays in memory in the editor and is cleared on reload. The service will load its saved layout when you connect. Export your browser draft first if you want to preserve a different draft.
+The `esp32dev` profile is for a generic classic ESP32, not the Waveshare S3. See [firmware.md](docs/firmware.md) for wiring. No `secrets.h`, `.env`, service URL or token is needed by the current firmware.
 
-Sample mode works without an external flight account. It exercises the full Python API, filters, cache, saved settings, and ESP32 frame endpoint. Only the upstream flight source is simulated.
+Firmware now reserves a 3 MiB application slot and LittleFS in the first 4 MiB of flash using `huge_app.csv`. It does not implement OTA. The first upgrade from the former partition map may reset stored data; subsequent normal uploads keep settings. An explicit full flash erase removes Wi-Fi, key, layout and request-budget state.
 
-### Docker
+Keep the HUB75 panel powered by its appropriate external 5 V supply. A USB data connection does not replace matrix power. Brightness starts at 25/255, matching the working demo. Increase it only within your power supply and panel limits.
 
-Requires Docker with Compose. Generate the environment file once, then run:
+## 2. Open Studio on your desktop
 
 ```bash
-python3 scripts/setup_env.py
-docker compose up --build -d
+python3 scripts/studio.py
 ```
 
-Skip the first command if `.env` already exists. The generator refuses to overwrite it. Open `http://localhost:8000` and connect as above. SQLite settings survive container restarts in the named volume. `docker compose down` stops the service; adding `-v` would delete its stored settings.
+Open **http://localhost:8765** in desktop Chrome or Edge. No Python packages are needed for this launcher. It serves only `dist/` on the loopback interface. It does not fetch flight data or hold credentials.
 
-The application runs as UID 10001. The container starts by assigning its data directory to that user, then drops privileges before starting the service. One process and one instance are intentional: caching and device presence are process-local; settings are stored in SQLite.
+Alternative: serve `dist/` from any trusted HTTPS static host. Use a top-level browser tab. Web Serial requires a supported browser and a secure context (HTTPS or localhost); opening `index.html` as a local file is not the supported route.
 
-## Enable live flights
+Close PlatformIO Serial Monitor, Arduino Serial Monitor and other programs using the same port. Click **Connect ESP32**, select the board, and allow serial access. This first device selection is required by the browser. On later loads or USB plug-in events, Studio reconnects only if there is exactly one previously authorized port matching the saved USB vendor/product identity. If multiple boards match, choose the correct one explicitly.
 
-Set `FLIGHT_PROVIDER=opensky` in `.env`. To authenticate, create an OpenSky API client and set both `OPENSKY_CLIENT_ID` and `OPENSKY_CLIENT_SECRET`. Restart the service. The client obtains and refreshes OAuth tokens automatically, retries temporary errors, and honors provider rate-limit cooldowns. Keep these credentials on the server.
+Studio verifies the `flightdeck` product and protocol version before sending settings. An old offline-only sketch cannot answer that handshake: flash the new firmware first.
 
-Without credentials, the client attempts anonymous access with a 240-second default cache TTL. Authenticated access and sample mode default to 30 seconds. An explicit `CACHE_TTL_SECONDS` overrides either default. Quotas depend on the account tier and queried area; the cache cannot guarantee uninterrupted access. The UI reports outages and stale data rather than substituting sample flights.
+## 3. Provision Wi-Fi and FlightAware
 
-OpenSky state vectors include position, altitude, ground speed, true track, and vertical rate. They do not supply the route, aircraft model, or arrival estimate needed by the new layers. Airline names are best-effort matches from callsign prefixes, which can differ from the marketed airline. See the [OpenSky REST documentation](https://openskynetwork.github.io/opensky-api/rest.html) for authentication, fields, and current limits.
+In **ESP32 settings**:
 
-### Live route, aircraft, and arrival estimates
+1. Enter the **2.4 GHz Wi-Fi name** and password. WPA/WPA2 Personal or an open network is supported. Enterprise Wi-Fi, captive portals and 5-GHz-only networks are not implemented; for campus testing, a compatible hotspot is the straightforward option.
+2. Leave board mode at **Offline demo** for a no-account hardware check.
+3. For live data, enter your own **FlightAware AeroAPI key**, select **Live FlightAware**, review the poll interval and hourly request cap, and save.
+4. Watch the footer for the Wi-Fi IP and the feed line for provider status. Time synchronization must succeed before certificate-validated HTTPS starts.
 
-Set `AEROAPI_KEY` to your FlightAware AeroAPI key on the Python server, alongside `FLIGHT_PROVIDER=opensky`, and restart. This optional integration requests the selected flight from [`GET /flights/{ident}`](https://www.flightaware.com/commercial/aeroapi/resources/aeroapi-openapi.yml). It chooses a single matching, departed, unlanded flight; ambiguous matches stay unknown. Airport labels prefer IATA codes and fall back to ICAO codes. Common aircraft codes such as `B789` and `E75L` display as `B787-9` and `E175`.
+Blank password/key fields preserve saved values. Changing the network name requires its password or the explicit **Open network** checkbox. **Forget credentials** clears both Wi-Fi and API credentials and puts the board back into demo mode. This does not erase the saved layout or reset the hourly request counter.
 
-Both departure and arrival codes come from that flight's API response; `ORD->HND` is only an illustrative route in sample mode. The editor identifies the route source and tells you if the server needs a key or the route API is temporarily unavailable.
+Secrets are cleared from the form after a successful save or closing the dialog. Status replies contain availability flags only. Browser drafts and exported layouts contain layout/filter data, not credentials. The board stores credentials in ordinary, unencrypted NVS; physical access to flash is outside this firmware's protection.
 
-These are billable lookups under your FlightAware plan. The service only enriches the flight currently selected for preview or device display, and only when a journey layer is visible. It caches each callsign for `DETAILS_CACHE_TTL_SECONDS` (300 by default), requests at most one result page, and caps requests at `AEROAPI_MAX_REQUESTS_PER_HOUR` (120 by default per service process). Negative results are cached too. Rate-limit and authentication failures trigger a shared cooldown. Rotation can select up to 20 flights, each requiring its own lookup. Adjust the limit to your plan; reaching it leaves uncached details unavailable while position data continues.
+## 4. Edit and display layouts live
 
-Time remaining uses the estimated runway arrival in UTC, rounded up to minutes. Progress is elapsed time from actual takeoff divided by estimated total flight time, clamped to 0–100%; it is an estimate, not geographic distance traveled. The provider's progress percentage is a fallback when timestamps are incomplete. The editor updates its countdown every second; the ESP32 receives updates with its normal frame polls. At or past the estimate, time shows `0M`, which does not confirm landing. Missing values show dashes, and an unavailable ETA never becomes a made-up arrival time. Sample trips are illustrative and labeled; live failures never substitute them.
+- Toggle **Live on matrix** after connecting. Studio sends complete RGB565 preview frames over USB as you move layers, change colors, select flights or import logos. It keeps only the newest pending frame if you edit faster than USB can transfer.
+- Live preview is temporary and does not write flash for every drag. Stop preview to resume the saved autonomous layout.
+- Click **Save to ESP32** to persist layout, logos, units, brightness, flight filters and rotation interval. It stops preview and resumes device rendering. Network filters take effect on the next allowed poll, without bypassing the request cap/cooldown.
+- **Load board layout** reads the saved configuration back. Undo restores the previous draft if needed. Readback has RGB565 panel color precision; **Export layout** from the original draft preserves its original 24-bit colors.
+- Layout JSON import/export, undo/redo and browser draft saving remain available offline. A dirty in-session draft is preserved when connecting; otherwise the board's saved layout is loaded.
 
-No key is required for the test GUI or service sample mode. Replace the Python backend with this source version before using the new layers with an existing service; older backends do not recognize them. A firmware change is unnecessary because the new fields are rendered into the existing RGB565 frame.
+If Studio closes, USB is unplugged, or a background tab stops sending preview frames, the board resumes its saved layout after four seconds. Keep external power connected if you want it to continue running after unplugging USB.
 
-## Use the editor with your service
+Studio's sample/selected-flight preview and the board's autonomous rotation are distinct: Live on matrix mirrors your selected preview; autonomous mode rotates the board's eligible flights. The table refresh button reads cached board status; it does not trigger additional billable calls.
 
-- Enter the display's latitude and longitude and choose a radius, altitude range, speed floor, airline codes, and callsign filter.
-- **Apply filters** changes the preview. **Save to display** commits the layout and filters to the Python service.
-- The ESP32 receives saved settings on its next successful poll, normally within five seconds. It rotates through up to the first 20 matching flights every 15 seconds, ordered by the saved sort setting. `rotation_seconds` is configurable in exported JSON.
-- Clicking **Preview** on a flight only changes the editor. It does not pin the physical display to that flight.
-- An amber pixel at the upper right indicates stale flight data. Empty results display `NO FLIGHTS`; an upstream outage without usable cached data displays `DATA OFFLINE`.
-- Later layers draw above earlier layers. The editor flags overlap and truncated text. Hiding a stat leaves its position available for another layer.
+## 5. Live data behavior
 
-The hosted editor needs a reachable **HTTPS** backend. Set `CORS_ORIGINS` to the editor's exact origin, without a trailing slash. For local HTTP use, open the editor from `http://localhost:8000` or the service's LAN address. An HTTPS page cannot freely connect to an HTTP server on your local network.
+The ESP32 requests `GET /flights/search?max_pages=1&query=...` from `https://aeroapi.flightaware.com/aeroapi` with the `x-apikey` header. The query bounds your location; exact radius, age, altitude, speed, callsign and airline filtering runs on the board. Flights are sorted by distance or altitude.
 
-## Connect the ESP32
+The search response supplies position, route and aircraft type. Altitude is converted from FlightAware's hundreds of feet into feet. It does not supply a numeric vertical rate, so that field stays `--`. Search is airborne-only; the ground-aircraft checkbox is unavailable in live mode and works in demo mode.
 
-1. See [firmware setup](docs/firmware.md) and confirm your controller model and HUB75 pin mapping.
-2. Copy `firmware/include/secrets.example.h` to `firmware/include/secrets.h`.
-3. Fill in Wi-Fi credentials, the Python service URL, and `DEVICE_TOKEN` from `.env`. Use your computer's LAN IP for local hardware, not `localhost`.
-4. Install the development requirements and compile/upload with PlatformIO:
+When ETA/progress layers are visible, at most one rotating flight per poll gets `GET /flights/{fa_flight_id}?max_pages=1`. Matching uses the unique flight ID to avoid confusing another flight with the same callsign. Estimated arrival and progress are cached for ten minutes. Flights without usable estimates show `--`; ETA coverage is deliberately bounded by the request cap, not guaranteed for every displayed flight. Progress is estimated elapsed flight time, not geographic distance along the route.
 
-```bash
-pip install -r requirements-dev.txt
-pio run -d firmware -e esp32dev
-pio run -d firmware -e esp32dev -t upload
-pio device monitor -d firmware
-```
+One response page and at most 15 filtered flights are kept. If FlightAware reports another page, Studio reports truncation. Dense airspace can omit nearby flights that fall on later pages. Radius boxes crossing the date line use a full-longitude search, so narrow results can be especially incomplete there. The firmware never follows pagination links automatically.
 
-Use `-e esp32s3` for an ESP32-S3 development board after setting its correct pins. These generic profiles do not claim a pinout match to every ESP32 matrix controller. The editor reports the last layout revision acknowledged by the connected device.
+Defaults: 300 seconds between polls; at most 24 attempted HTTP calls per **UTC clock hour**. Search, details, HTTP errors and failed network attempts all count. The counter is committed before each request and survives resets. An hour boundary can permit another batch; this is not a rolling-hour or dollar limit. Per-call/result-set charges depend on your FlightAware plan. Use its account controls and usage page for billing oversight.
 
-To test the complete device API without hardware:
+HTTP 429 honors `Retry-After` (seconds or HTTP date), at least five minutes and up to one day. Authentication/permission errors suspend further attempts until the key changes or the board restarts after account access is corrected. Other failures wait at least five minutes. Changing filters or clicking refresh does not bypass a pending cooldown. Positions expire at the saved maximum age (300 seconds by default). No valid live positions means `DATA OFFLINE` or `NO FLIGHTS`; firmware does not silently substitute demos in live mode.
 
-```bash
-python scripts/simulate_device.py --frames 3
-```
+## Troubleshooting
 
-This checks each packet's size and checksum, acknowledges the prior layout revision, and writes `frame.ppm` so you can inspect the received pixels.
-
-## Deploy the Python backend
-
-The published sample editor and the Python backend are separate deployment targets. The static editor does not run Python. The full app can run on your laptop, a Raspberry Pi capable of running Docker, or a cloud host that supports the Dockerfile.
-
-`render.yaml` supplies an optional Render Blueprint with a persistent disk, generated admin/device tokens, and a health check. A Render account connection and a source repository accessible to Render are required. The configured service and disk incur provider charges; review the price in Render before creating them. The blueprint starts in sample mode so you can verify connectivity before setting live credentials. It has not provisioned a cloud backend for you.
-
-For Render: put the source in your own Git repository, create a Blueprint from it, set the environment fields, and open the resulting HTTPS service URL. The service hosts its own editor at `/`. If using the separately published editor, add that editor's origin to `CORS_ORIGINS`. Configure the ESP32 with the backend URL and its issuing CA certificate. Deployment reference: [Render Blueprints](https://render.com/docs/blueprint-spec) and [persistent disks](https://render.com/docs/disks).
-
-## Tests
-
-Node.js 22+ and a C++ compiler let you run every check, including browser/Python pixel parity and the firmware packet decoder.
-
-```bash
-pip install -r requirements-dev.txt
-pytest -q
-node --test tests/editor.test.mjs
-pio run -d firmware -e esp32dev -e esp32s3
-```
-
-The suite covers API authentication, layout persistence, optimistic concurrency, input validation, filter boundaries, antimeridian/polar searches, OAuth renewal, 429 cooldowns, retry behavior, concurrent cache refreshes, bounded stale fallback, corrupt packet rejection, and JavaScript/Python RGB565 parity. It also launches the real service process and runs the device simulator against HTTP.
-
-CI runs the software tests, both firmware builds, and a Docker build. OpenSky and FlightAware tests use controlled mock responses. Journey tests cover flight matching, missing data, countdowns, progress boundaries, cache reuse, lookup limits, draft migration, and matching browser/device pixels. Physical Wi-Fi, panel scan rate, wiring, color order, and real account access need verification on your hardware. See [validation record](docs/validation.md) for checks actually run during delivery.
-
-## Project map
-
-| Location | Purpose |
+| Symptom | Check |
 | --- | --- |
-| `backend/provider.py` | Async Python OpenSky API client and OAuth |
-| `backend/details.py` | Optional FlightAware route, aircraft, and ETA enrichment |
-| `backend/journey.py`, `dist/journey.mjs` | Countdown, estimated progress, and pixel plane |
-| `backend/cache.py` | Shared TTL cache, bounded memory, stale fallback |
-| `backend/flights.py` | Spatial query bounds, filtering, sample source |
-| `backend/main.py` | FastAPI routes, authentication, device state |
-| `backend/store.py` | SQLite persistence and revision checks |
-| `backend/renderer.py` | Bitmap renderer and RGB565 packet encoding |
-| `dist/` | The working editor, shared font, and default configuration |
-| `firmware/` | ESP32 / ESP32-S3 firmware and frame decoder |
-| `scripts/` | Local setup, device simulator, source packaging |
-| `tests/` | Python, JavaScript, and cross-language checks |
-| `Dockerfile`, `compose.yaml`, `render.yaml` | Local and cloud deployment definitions |
-| `.github/workflows/ci.yml` | Automated validation pipeline |
+| No USB capability | Desktop Chrome/Edge, localhost or HTTPS, top-level tab |
+| No selectable port | USB **data** cable, proper connector, OS USB/UART driver, board powered |
+| Port busy / access denied | Close Serial Monitor and other Studio tabs using the board |
+| Handshake timeout | Flash current firmware; wait for boot; select its CDC/UART port, not a different device |
+| Wi-Fi never connects | Correct SSID/password; 2.4 GHz Personal network; no captive portal |
+| Waiting for NTP | Network permits DNS and NTP; HTTPS waits for a trustworthy clock |
+| API access denied | Valid AeroAPI key and account access to flight search; a normal website login is not an API key |
+| No matching flights | Correct latitude/longitude, radius and filters; one-page limit; position freshness |
+| ETA missing | No provider estimate yet, not yet enriched, detail lookup failed or request cap reached |
+| Board did not keep an edit | Save to ESP32, then check for a success message; preview alone is temporary |
+| Data stops after editing | Leave board in Live mode and retain external power; read feed status for cap/cooldown |
+| Layout or flash unavailable | Check status; normal firmware won't automatically format a previously mounted filesystem |
 
-The API and wire contract are documented in [protocol.md](docs/protocol.md). FastAPI also exposes OpenAPI documentation at `/docs` on the Python service.
+## Implementation and tests
+
+See [USB protocol](docs/protocol.md), [hardware](docs/firmware.md), [validation](docs/validation.md) and [security](SECURITY.md). The old Python backend is retained for reference in [legacy-service.md](docs/legacy-service.md), but is not in the current Studio/firmware path.
+
+Primary references: [FlightAware OpenAPI specification](https://www.flightaware.com/commercial/aeroapi/resources/aeroapi-openapi.yml), [FlightAware AeroAPI](https://www.flightaware.com/commercial/aeroapi/), [Chrome Web Serial](https://developer.chrome.com/docs/capabilities/serial).

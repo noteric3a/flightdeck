@@ -16,7 +16,8 @@ jobs:
           node-version: '22'
       - run: pip install -r requirements-dev.txt
       - run: pytest -q
-      - run: node --test tests/editor.test.mjs
+      - run: node --test tests/*.test.mjs
+      - run: node scripts/generate_device_assets.mjs --check
       - run: docker build -t flightdeck:test .
   firmware:
     runs-on: ubuntu-latest
@@ -25,5 +26,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install platformio==6.2.0
+      - run: pip install platformio==6.1.18
       - run: pio run -d firmware -e esp32dev -e esp32s3
+      - run: python scripts/test_device_provider.py

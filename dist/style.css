@@ -708,7 +708,9 @@ dialog {
   background: var(--panel);
   color: var(--text);
   padding: 28px;
-  width: min(480px, calc(100% - 30px));
+  width: min(560px, calc(100% - 30px));
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
   box-shadow: 0 30px 120px #000a;
 }
 dialog::backdrop {
@@ -741,6 +743,7 @@ dialog .panel-note {
 }
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 12px;
   margin-top: 5px;

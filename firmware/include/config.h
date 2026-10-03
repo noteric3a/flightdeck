@@ -13,8 +13,8 @@
 #define PIN_B 8
 #define PIN_C 3
 #define PIN_D 42
-#define PIN_CLK 40
-#define PIN_LAT 41
+#define PIN_CLK 41
+#define PIN_LAT 40
 #define PIN_OE 2
 #else
 #define PIN_R1 25

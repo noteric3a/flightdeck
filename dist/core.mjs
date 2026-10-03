@@ -215,7 +215,7 @@ export function overlaps(elements) {
 export function sampleFlights(filters, now = Date.now() / 1000, epoch = now) {
   // Illustrative trips; these are not the real schedules for the callsigns.
   const journeys = [
-    ["ORD", "HND", "B787-9", 510, 225],
+    ["PHL", "ORD", "B787-9", 510, 225],
     ["ATL", "JFK", "E175", 75, 45],
     ["MDW", "DEN", "B737-800", 35, 100],
     ["DFW", "LAX", "A321", 130, 25],

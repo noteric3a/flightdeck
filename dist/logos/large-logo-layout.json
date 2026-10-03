@@ -3,7 +3,7 @@
   "layout": {
     "width": 64,
     "height": 32,
-    "brightness": 96,
+    "brightness": 25,
     "units": "aviation",
     "background": "#000000",
     "elements": [
@@ -16,7 +16,7 @@
         "height": 28,
         "scale": 1,
         "visible": true,
-        "color": "#50c8ff"
+        "color": "#0000ff"
       },
       {
         "id": "callsign",
@@ -38,7 +38,7 @@
         "height": 5,
         "scale": 1,
         "visible": false,
-        "color": "#50c8ff"
+        "color": "#0000ff"
       },
       {
         "id": "altitude",

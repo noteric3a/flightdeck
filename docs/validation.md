@@ -1,50 +1,35 @@
-# Validation record — portfolio cleanup
+# Validation — autonomous ESP32 + USB Studio
 
-Checked on **September 18, 2026** against the supplied source plus the documented packaging changes.
-
-## Checks executed in this environment
+Validation performed on 2026-10-03, using the uploaded working project and preserving the existing upstream PHL → ORD sample-route update.
 
 | Check | Result |
 | --- | --- |
-| Python suite | **75 passed**: 53 supplied tests plus 22 new source-packaging checks |
-| JavaScript suite | **13 passed** |
-| Native frame decoder / renderer parity | Covered by the passing supplied Python suite |
-| Packaging policy | Tests cover environment variants, credential paths, cache/log/database exclusions, retained editor assets/examples, symlinks, and archive self-exclusion |
-| Browser screenshot / interaction | Not completed: Playwright's Chromium executable was unavailable |
-| Docker image | Not built or run here |
-| ESP32 / ESP32-S3 firmware | Not compiled or flashed during this cleanup |
-| Physical matrix, Wi-Fi, wiring, scan rate, power | Not tested |
-| Live OpenSky / FlightAware access | Not tested; no live-provider or paid API requests made |
+| Existing Python suite (`python -m pytest -q`) | 75 passed; one upstream Starlette test-client deprecation warning |
+| JavaScript + native renderer (`node --test tests/*.test.mjs`) | 19 passed |
+| C++ pixel comparison | Exact RGB565 equality with Studio across presets, all fields, scale/units, missing values, progress endpoints, transparent logos and clipping |
+| Native memory checks | Renderer/layout tests compiled with address and undefined-behavior sanitizers; malformed/truncated layouts rejected |
+| Native AeroAPI fixtures (`python scripts/test_device_provider.py`) | Passed: altitude units, missing data, timestamps, radius/age, exact flight-ID enrichment |
+| Browser integration (`node tests/studio.browser.mjs`) | Passed in headless Chromium 134 / Playwright 1.51.1 with a simulated Web Serial device |
+| Browser workflow | USB connect/reconnect, settings save, clearing secret inputs, no secret localStorage, live edited frame, layout save/readback, disconnect/resume |
+| Browser request audit | No `/api/` backend requests |
+| ESP32-S3 build | Successful with the pinned PlatformIO platform/libraries |
+| Classic ESP32 build | Successful with the pinned PlatformIO platform/libraries |
+| Generated assets | `node scripts/generate_device_assets.mjs --check` passed |
+| Source whitespace | `git diff --check` passed |
 
-Commands executed from the project root:
+Build environment: Linux, PlatformIO 6.1.18, espressif32 6.12.0, Arduino-ESP32 2.0.17; Node 24.19.0; Python 3.12; native g++ with sanitizers. The S3 build retains the upload's Waveshare N32R16 settings. Clean builds were used after this environment produced an incremental static-archive index error.
 
-```bash
-python -m pytest -q
-node --test tests/editor.test.mjs
-```
+## Not verified here
 
-## Actual local environment
+No physical ESP32/HUB75 was attached, no Wi-Fi credentials or AeroAPI key were supplied, and no paid FlightAware requests were made. Actual flashing, board startup, DMA/panel behavior, sustained heap usage under Wi-Fi/TLS + USB load, USB drivers, NVS/LittleFS power interruption behavior, network reconnection, and live account/endpoint access still need a test on the user's hardware. Software mocks cannot establish these. No physical FPS, latency, power or wireless stability measurements are claimed.
 
-Python **3.13.5**, Node.js **22.16.0**. The installed packages were:
+## First hardware acceptance check
 
-| Package | Installed version |
-| --- | --- |
-| fastapi | 0.128.2 |
-| uvicorn | 0.48.0 |
-| httpx | 0.28.1 |
-| pydantic | 2.13.4 |
-| python-dotenv | 1.2.2 |
-| pytest | 9.0.2 |
-| pytest-asyncio | 1.3.0 |
+1. Flash `esp32s3`; verify the offline sample appears with the USB computer disconnected and external power present.
+2. Connect Studio in Chrome/Edge and confirm `panel_ready`, storage and USB status.
+3. Enable Live on matrix, move a layer, and confirm the physical pixels match.
+4. Save to ESP32, unplug USB, and power-cycle. Confirm the saved layout returns.
+5. Provision a 2.4 GHz Personal network and AeroAPI key; enable live mode with a low request cap. Confirm direct data, units and counters in Studio.
+6. Remove network access and restore it; verify stale/expired data handling and continued USB editing. Close Studio; confirm autonomous operation.
 
-**These installed versions differ from the supplied pinned requirements.** Passing tests establish behavior in this environment, not successful installation or compatibility of every pinned dependency. The pinned dependency files and CI definitions were left unchanged. A clean install with those exact pins remains a separate validation step.
-
-## Scope of changes
-
-The service, renderer, browser editor, firmware, presets, logo assets, and deployment definitions are unchanged. Changes include a portfolio-oriented README, preservation of the original instructions in `USAGE.md`, contributor/security notes, editor/Git hygiene, a side-effect-free packaging function, and 22 packaging tests.
-
-The packaging script excludes known sensitive/runtime paths; it is **not a general secret scanner**. Review the resulting archive before public release.
-
-## Historical validation
-
-The supplied archive's original validation record is preserved unchanged in [validation-original.md](validation-original.md). Its September 9, 2026 firmware-build and environment claims were not independently reverified during this cleanup and must not be substituted for the current results above.
+The former server-based validation record is retained in [validation-service.md](validation-service.md).

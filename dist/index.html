@@ -9,7 +9,7 @@
       content="Design a pixel-perfect flight display. Arrange your airline logo, choose flight stats, and connect your ESP32."
     />
     <title>Flightdeck — Display studio</title>
-    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <header class="topbar">
@@ -21,7 +21,7 @@
       <div class="top-actions">
         <span class="badge" id="source-badge">SAMPLE DATA</span
         ><button id="connection-open" class="button">
-          Connect service <span>↗</span>
+          Connect ESP32 <span>↗</span>
         </button>
       </div>
     </header>
@@ -114,6 +114,7 @@
               ><span class="muted" id="preview-airline">United</span>
             </div>
             <div class="preview-actions">
+              <label class="check-label"><input id="live-preview" type="checkbox" /> Live on matrix</label>
               <label class="check-label"
                 ><input id="rotate" type="checkbox" /> Rotate</label
               ><button class="button compact" id="next-flight">
@@ -196,7 +197,7 @@
               <button id="remove-logo" class="text-button">
                 Use airline initials
               </button>
-              <a class="text-button" href="/airline-pixel-logos.zip" download>Download pixel logos ↓</a>
+              <a class="text-button" href="./airline-pixel-logos.zip" download>Download pixel logos ↓</a>
             </div>
             <div class="separator"></div>
             <label
@@ -254,7 +255,7 @@
             No flights match these filters. Try a wider radius.
           </div>
           <div class="table-footer">
-            <span id="device-status">ESP32 · no service connected</span
+            <span id="device-status">ESP32 · connect with a USB data cable</span
             ><span>Preview selection stays in the editor</span>
           </div>
         </div>
@@ -344,55 +345,34 @@
         <span
           >flightdeck <span class="muted">/</span> built for the sky above
           you</span
-        ><a href="/flightdeck-source.zip" download
-          >Download Python service, firmware &amp; setup ↗</a
+        ><a href="https://github.com/noteric3a/flightdeck" target="_blank" rel="noopener"
+          >Get firmware &amp; setup on GitHub ↗</a
         >
       </footer>
     </main>
     <dialog id="connection-dialog">
       <form id="connection-form">
-        <div class="dialog-head">
-          <h2>Connect your flight service</h2>
-          <button
-            type="button"
-            class="icon-button"
-            id="connection-close"
-            aria-label="Close"
-          >
-            ×
-          </button>
+        <div class="dialog-head"><h2>ESP32 settings</h2><button type="button" class="icon-button" id="connection-close" aria-label="Close">×</button></div>
+        <p>Connect once over USB. Your ESP32 saves these settings and fetches FlightAware data itself.</p>
+        <label>2.4 GHz Wi-Fi name<input id="wifi-ssid" autocomplete="off" maxlength="32" placeholder="Your network name" /></label>
+        <label>Wi-Fi password<input id="wifi-password" type="password" autocomplete="new-password" maxlength="64" placeholder="Blank keeps the saved password" /></label>
+        <label class="check-label"><input id="open-network" type="checkbox" /> Open network (no password)</label>
+        <p class="panel-note">Use a personal/WPA2 network or hotspot. Campus enterprise Wi-Fi and captive portals are not supported.</p>
+        <label>FlightAware AeroAPI key<input id="aeroapi-key" type="password" autocomplete="new-password" maxlength="256" placeholder="Blank keeps the saved key" /></label>
+        <p id="credential-state" class="panel-note"></p>
+        <label>Board mode<select id="device-mode"><option value="demo">Offline demo · no API requests</option><option value="live">Live FlightAware · uses your API account</option></select></label>
+        <div class="field-row">
+          <label>Poll interval (seconds)<input id="poll-seconds" type="number" min="60" max="3600" value="300" required /></label>
+          <label>Requests per UTC hour<input id="request-limit" type="number" min="1" max="120" value="24" required /></label>
         </div>
-        <p>
-          Run the included Python service, then connect this editor. You can
-          also open the editor directly from that service.
-        </p>
-        <label
-          >Service URL<input
-            id="service-url"
-            type="url"
-            placeholder="https://your-flight-service.example"
-            required /></label
-        ><label
-          >Admin token<input
-            id="admin-token"
-            type="password"
-            autocomplete="off"
-            placeholder="ADMIN_TOKEN from your .env"
-            required
-        /></label>
-        <p class="panel-note">
-          The token stays in memory for this session. A hosted editor needs an
-          HTTPS service that allows this editor’s origin.
-        </p>
+        <p class="panel-note">Live AeroAPI queries may be billable. Each poll uses one nearby-flight search and up to one ETA lookup. One page per request; no automatic pagination. Check your FlightAware plan and account usage. USB previews use no API requests.</p>
+        <p class="panel-note">Save to ESP32 keeps your layout after unplugging. Live on matrix temporarily mirrors Studio; the saved display resumes when preview stops.</p>
+        <div class="dialog-actions"><button type="button" class="button" id="load-board-layout">Load board layout</button><button type="button" class="text-button" id="forget-credentials">Forget credentials</button></div>
         <p id="connection-error" class="error" role="alert"></p>
-        <div class="dialog-actions">
-          <button type="button" class="button" id="disconnect">
-            Use sample data</button
-          ><button class="button primary" type="submit">Connect</button>
-        </div>
+        <div class="dialog-actions"><button type="button" class="button" id="disconnect">Disconnect USB</button><button class="button primary" type="submit">Save Wi-Fi &amp; API settings</button></div>
       </form>
     </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <script type="module" src="/app.mjs"></script>
+    <script type="module" src="./app.mjs"></script>
   </body>
 </html>

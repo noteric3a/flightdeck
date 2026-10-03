@@ -1,95 +1,70 @@
 # Flightdeck Studio
 
-**An ESP32 flight-information display with a Python service and a browser-based layout editor.**
+**An autonomous ESP32 flight display, with a USB layout and setup studio.**
 
-Flightdeck connects flight-data clients, a cache and filtering layer, a shared pixel renderer, and ESP32 firmware for a **64 × 32 HUB75 RGB matrix**. Sample mode lets the service, editor, and device protocol run without a paid API account or physical panel.
+The ESP32 drives a 64 × 32 HUB75 matrix, joins Wi-Fi, talks directly to FlightAware AeroAPI over verified HTTPS, filters nearby flights, and renders its saved layout. Flightdeck Studio connects over USB to provision Wi-Fi/API credentials, edit layouts, mirror a live preview, and save layouts to the board. No Python flight-data service, Render deployment, or other always-on computer is required.
 
-[Setup and operation](USAGE.md) · [Hardware](docs/firmware.md) · [Wire protocol](docs/protocol.md) · [Validation](docs/validation.md)
+[Get started](USAGE.md) · [Hardware and flashing](docs/firmware.md) · [USB protocol](docs/protocol.md) · [Validation](docs/validation.md)
 
-![Sample layouts rendered by the project, not photographs of physical hardware](dist/logos/display-examples.png)
-
-*Software-rendered sample layouts. Physical panel output is not verified by this image.*
-
-## System architecture
+## Architecture
 
 ```mermaid
-flowchart LR
-    O[OpenSky position data] --> P[Python provider clients]
-    A[Optional FlightAware journey data] --> P
-    P --> C[Cache and flight filters]
-    C --> R[Pixel renderer]
-    B[Browser layout editor] --> S[FastAPI and SQLite settings]
-    S --> R
-    R --> F[RGB565 frame and checksum]
-    F --> E[ESP32 over HTTP or HTTPS]
-    E --> M[64 x 32 HUB75 matrix]
+flowchart TD
+    Studio["Studio on desktop Chrome / Edge"] -->|"USB: settings, layouts, preview"| ESP["ESP32 firmware"]
+    ESP -->|"USB: status and flights"| Studio
+    ESP <-->|"Wi-Fi + verified HTTPS"| FA["FlightAware AeroAPI"]
+    ESP --> Flash["Saved settings and layout"]
+    ESP --> Matrix["64 × 32 HUB75 matrix"]
 ```
 
-The backend performs flight matching and rendering; the ESP32 receives complete pixel frames rather than parsing airline APIs. The browser and Python renderer share font/layout resources and are checked for matching RGB565 output.
+Studio is a static browser app. Its optional local launcher serves editor files only; it never queries FlightAware. Close Studio and disconnect the computer after setup: the externally powered board continues by itself.
 
-## Engineering features
+## Start
 
-| Area | Implemented behavior |
-| --- | --- |
-| Flight service | Async provider access, flight filtering, token renewal, bounded caching, stale-data behavior, retry/cooldown handling |
-| Layout editor | Movable and independently toggleable layers, logo import, presets, clipping checks, JSON import/export |
-| Journey information | Optional route, aircraft, ETA, and estimated time-progress enrichment; unavailable data stays unknown |
-| Device interface | Authenticated frame delivery, length/checksum validation, layout revision acknowledgement, simulator |
-| Persistence | SQLite settings and optimistic revision checks |
-| Delivery | Docker/Compose definitions, optional Render configuration, software/firmware CI definitions |
+1. Flash the updated firmware once: `pio run -d firmware -e esp32s3 -t upload`. This default profile retains the uploaded **Waveshare ESP32-S3 RGB Matrix N32R16** configuration. Confirm your board before choosing a different profile.
+2. Close PlatformIO Serial Monitor. Run `python3 scripts/studio.py`, then open the printed localhost URL in desktop **Chrome or Edge**.
+3. Click **Connect ESP32**, select its serial port, and enter your 2.4 GHz Wi-Fi settings. Choose **Offline demo** first, or provide an AeroAPI key and select **Live FlightAware**.
+4. Enable **Live on matrix** to mirror your edits, including sample flights. Click **Save to ESP32** to keep the layout and filters in flash and resume autonomous display.
 
-The default layout uses a 20 × 20 airline logo with a flight identifier, route, aircraft type, time remaining, and a progress bar. Sample routes are illustrative, not live flight information.
+First-time serial access requires the browser's device picker. A single previously authorized matching USB port can reconnect automatically. Safari and Firefox do not provide the required Web Serial support; the UI explains this rather than pretending to connect.
 
-## Run locally without flight-provider credentials
+## What runs on the board
 
-Requires Python 3.12 or newer. From this directory:
+- Direct AeroAPI nearby-airborne-flight search, geographic and flight filters, rotation, route/type display, and optional ETA enrichment.
+- Shared 3 × 5 font, all 12 editor fields, layer visibility/position/scale, custom logos, metric/aviation units, RGB565 output.
+- A separate Wi-Fi/TLS task so network waits do not block USB commands or rendering.
+- Credential persistence in NVS; checksummed layout storage with a previous-copy fallback in LittleFS.
+- A 4-second USB preview lease: the saved autonomous layout resumes when preview traffic stops.
+- Bounded JSON/USB buffers, CRC-checked transfers, HTTPS trust roots, request caps, and Retry-After cooldowns.
+- An offline demo with the PHL → ORD sample and the user's blue accents. The exact uploaded demo is also preserved in `firmware/examples/offline-demo/main.cpp`.
 
-```bash
-python -m venv .venv
-# macOS / Linux:
-source .venv/bin/activate
-# Windows PowerShell instead:
-# .venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python scripts/setup_env.py
-python -m backend
-```
+## Provider limits and credentials
 
-Open `http://localhost:8000`. Choose **Connect service**, enter the local service URL, and use the generated `ADMIN_TOKEN` from `.env`. The setup script refuses to overwrite an existing environment file. Keep the default sample provider for the first run.
+AeroAPI needs your own account/key and may charge per result set. Defaults are **one poll every 300 seconds** and **at most 24 HTTP requests per UTC hour**, persisted across reboot. A poll uses one search plus at most one ETA request, both counted. This is a request guard, not a dollar spending limit. Check your account's pricing and endpoint access.
 
-For live data, configure server-side provider credentials using [USAGE.md](USAGE.md). Optional FlightAware requests may be billable; inspect request caps before enabling them. Do not paste credentials into the browser source or commit `.env`.
+One page / at most 15 matching flights is retained. More results are reported as truncated; narrow the radius to reduce omissions. Search covers **airborne** flights. ETA is looked up for one rotating flight per poll and cached for ten minutes; other flights may show `--` until enriched. Vertical speed is unavailable from this endpoint and stays unknown. No data is fabricated when the provider fails. See [USAGE.md](USAGE.md) for all limits.
 
-## Hardware integration
+Wi-Fi passwords and API keys travel directly over the selected USB connection. They are never written to browser storage or returned in status replies. Device flash is **not encrypted** by this firmware; treat the physical board and the computer used to configure it as trusted.
 
-The firmware targets a single 64 × 32, 1/16-scan HUB75 panel, with generic ESP32 and ESP32-S3 build profiles. **A generic profile is not a verified pinout for every matrix controller.** Confirm the exact board schematic, panel scan pattern, power requirements, and GPIO mapping before connecting or flashing hardware.
-
-See [firmware setup](docs/firmware.md). The service/device contract is documented separately in [protocol.md](docs/protocol.md). A software-only device check is available through `scripts/simulate_device.py`.
-
-## Tests
+## Development checks
 
 ```bash
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
-node --test tests/editor.test.mjs
+node --test tests/*.test.mjs
+node scripts/generate_device_assets.mjs --check
+pio run -d firmware -e esp32dev -e esp32s3
+python scripts/test_device_provider.py
 ```
 
-Node.js 22+ and a native C++ compiler are needed for the cross-language checks. PlatformIO firmware commands are in the operating guide. Test definitions and CI configuration are not the same as completed CI or hardware validation: see the dated [validation record](docs/validation.md) for exactly what was run.
+Native tests compare the actual C++ firmware renderer with Studio pixels and check malformed layouts using address/undefined-behavior sanitizers. USB and browser tests use simulated hardware. Neither compilation nor simulated tests establish physical panel or paid-account compatibility. See the [validation record](docs/validation.md).
 
-## Repository map
+## Repository
 
-```text
-backend/       Python API, provider clients, cache, filtering, persistence, renderer
-firmware/      ESP32 / ESP32-S3 code and frame decoder
-dist/          Working browser editor and required shared pixel assets
-docs/          Protocol, hardware, assets, and validation records
-scripts/       Environment setup, device simulator, safe source packaging
-tests/         Python, JavaScript, protocol, and renderer checks
-```
+- `dist/`: Studio; required source assets despite the directory name.
+- `firmware/`: autonomous firmware, pinned build profiles, saved hardware demo.
+- `scripts/`: static Studio launcher, asset generation, source packaging, provider tests.
+- `tests/`: existing service tests plus USB, native renderer, provider and browser checks.
+- `backend/`, Docker/Render definitions: retained **legacy service implementation**; not used by current Studio or firmware. [Legacy reference](docs/legacy-service.md).
 
-`dist/` contains required application assets and must stay in the repository. Only the generated source ZIP inside it is ignored.
-
-## Status and limitations
-
-Software tests can validate frame correctness and simulated service behavior; they do not establish physical Wi-Fi stability, wiring compatibility, scan performance, a successful cloud deployment, or real provider-account access. No FPS, power, latency, or completed-hardware measurements are claimed without a recorded test.
-
-See [contributing](CONTRIBUTING.md) and [security](SECURITY.md). Airline pixel assets and their documented origin remain in [pixel-logos.md](docs/pixel-logos.md); no airline endorsement is implied. Licensing and third-party asset rights should be reviewed before broad redistribution.
+[Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Pixel asset attribution](docs/pixel-logos.md). No airline endorsement is implied.

@@ -1,10 +1,10 @@
 # Contributing
 
-Use a focused branch and explain what changed, why, and how it was tested. Keep device protocol changes coordinated across Python, JavaScript, and C++.
+Use a focused branch and explain what changed, why, and how it was tested. Keep USB protocol changes coordinated across JavaScript and C++. Legacy Python endpoints remain separately tested. Regenerate firmware assets after changing Studio defaults or font data with `node scripts/generate_device_assets.mjs`.
 
 ## Local checks
 
-Install the documented development requirements, then run `python -m pytest -q` and `node --test tests/editor.test.mjs`. Firmware changes also need the appropriate PlatformIO build and, before claiming hardware compatibility, a test on the actual board and panel.
+Install the documented development requirements, then run `python -m pytest -q` and `node --test tests/*.test.mjs`. Firmware changes also need the appropriate PlatformIO build and, before claiming hardware compatibility, a test on the actual board and panel.
 
 Do not commit credentials, databases, generated caches, or local simulator frames. Keep required `dist/` editor assets in source control. `python scripts/package_source.py` creates the portable source archive while excluding known local/private file patterns; it is not a complete secret scanner.
 

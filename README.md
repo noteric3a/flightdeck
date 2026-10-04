@@ -48,14 +48,21 @@ Wi-Fi passwords and API keys travel directly over the selected USB connection. T
 
 ## Development checks
 
+Use separate Python environments for the legacy service tests and PlatformIO: their Uvicorn/Starlette dependencies are incompatible. Studio's launcher still needs only the Python standard library. Install firmware tools as described in [Hardware and flashing](docs/firmware.md#build-and-upload).
+
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
+python -m pip check
 python -m pytest -q
 node --test tests/*.test.mjs
 node scripts/generate_device_assets.mjs --check
-pio run -d firmware -e esp32dev -e esp32s3
+firmware/.venv/bin/pio run -d firmware -e esp32dev -e esp32s3
 python scripts/test_device_provider.py
 ```
+
+On Windows, activate the test environment with `.venv\Scripts\activate` and use `firmware\.venv\Scripts\pio.exe` for firmware commands.
 
 Native tests compare the actual C++ firmware renderer with Studio pixels and check malformed layouts using address/undefined-behavior sanitizers. USB and browser tests use simulated hardware. Neither compilation nor simulated tests establish physical panel or paid-account compatibility. See the [validation record](docs/validation.md).
 

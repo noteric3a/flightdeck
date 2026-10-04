@@ -1,0 +1,2 @@
+# Keep separate from the legacy service's incompatible Uvicorn/Starlette versions.
+platformio==6.1.18

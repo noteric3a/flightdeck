@@ -15,6 +15,7 @@ jobs:
         with:
           node-version: '22'
       - run: pip install -r requirements-dev.txt
+      - run: python -m pip check
       - run: pytest -q
       - run: node --test tests/*.test.mjs
       - run: node scripts/generate_device_assets.mjs --check
@@ -26,6 +27,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install platformio==6.1.18
+      - run: pip install -r requirements-firmware.txt
+      - run: python -m pip check
       - run: pio run -d firmware -e esp32dev -e esp32s3
       - run: python scripts/test_device_provider.py

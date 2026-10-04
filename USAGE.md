@@ -2,7 +2,7 @@
 
 ## 1. Flash the autonomous firmware
 
-Install PlatformIO in VS Code (or `python3 -m pip install platformio==6.1.18`). Open the project. Your uploaded working test used a **Waveshare ESP32-S3 RGB Matrix N32R16**, so `esp32s3` is the default build profile, with the same Octal flash/PSRAM, FM6126A driver, clock phase and GPIO E setting.
+Install PlatformIO in VS Code, or follow the [isolated command-line setup](docs/firmware.md#build-and-upload). Open the project. Your uploaded working test used a **Waveshare ESP32-S3 RGB Matrix N32R16**, so `esp32s3` is the default build profile, with the same Octal flash/PSRAM, FM6126A driver, clock phase and GPIO E setting.
 
 From the repository root:
 

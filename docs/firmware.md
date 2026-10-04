@@ -18,11 +18,18 @@ One 64 × 32 matrix, 1/16 scan, is supported by the renderer. The library receiv
 
 ## Build and upload
 
+Use the PlatformIO terminal in VS Code, or create a dedicated Python environment from the repository root. Keep PlatformIO separate from `requirements-dev.txt`: the legacy service and PlatformIO require incompatible Uvicorn/Starlette versions.
+
 ```bash
-python3 -m pip install platformio==6.1.18
+python3 -m venv firmware/.venv
+source firmware/.venv/bin/activate
+python -m pip install -r requirements-firmware.txt
+python -m pip check
 pio run -d firmware -e esp32s3
 pio run -d firmware -e esp32s3 -t upload
 ```
+
+On Windows, activate with `firmware\.venv\Scripts\activate` instead. Run `deactivate` before switching to the service test environment. The firmware environment is excluded from Git and source archives.
 
 Choose `esp32dev` only for a classic ESP32 with verified matching wiring. Libraries and platform versions are pinned in `platformio.ini`. If changing from a previous local build produces a damaged archive/index error, run `pio run -d firmware -t clean`, then rebuild.
 

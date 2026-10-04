@@ -1,4 +1,4 @@
 -r requirements.txt
 pytest==9.1.1
 pytest-asyncio==1.4.0
-platformio==6.1.18
+# Install firmware tools in a separate environment; see requirements-firmware.txt.

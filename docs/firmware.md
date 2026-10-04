@@ -19,10 +19,11 @@ One 64 × 32 matrix, 1/16 scan, is supported by the renderer. The library receiv
 ## Build and upload
 
 ```bash
-python3 -m pip install platformio==6.1.18
 pio run -d firmware -e esp32s3
 pio run -d firmware -e esp32s3 -t upload
 ```
+
+Install PlatformIO separately from the Python development environment (for example, through the VS Code extension); its dependencies conflict with the app's pinned Uvicorn version.
 
 Choose `esp32dev` only for a classic ESP32 with verified matching wiring. Libraries and platform versions are pinned in `platformio.ini`. If changing from a previous local build produces a damaged archive/index error, run `pio run -d firmware -t clean`, then rebuild.
 

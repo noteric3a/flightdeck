@@ -57,6 +57,8 @@ pio run -d firmware -e esp32dev -e esp32s3
 python scripts/test_device_provider.py
 ```
 
+Install PlatformIO separately from the Python development requirements (for example, through the VS Code extension); its dependencies conflict with the app's pinned Uvicorn version.
+
 Native tests compare the actual C++ firmware renderer with Studio pixels and check malformed layouts using address/undefined-behavior sanitizers. USB and browser tests use simulated hardware. Neither compilation nor simulated tests establish physical panel or paid-account compatibility. See the [validation record](docs/validation.md).
 
 ## Repository

@@ -1,6 +1,6 @@
 # Contributing
 
-Use a focused branch and explain what changed, why, and how it was tested. Keep USB protocol changes coordinated across JavaScript and C++. Legacy Python endpoints remain separately tested. Regenerate firmware assets after changing Studio defaults or font data with `node scripts/generate_device_assets.mjs`.
+Use a focused branch and explain what changed, why, and how it was tested. Keep USB protocol changes coordinated across JavaScript and C++. Legacy Python endpoints remain separately tested. Regenerate firmware assets after changing Studio defaults or font data with `node scripts/generate_device_assets.mjs`. Regenerate the PNG/layout downloads and logo ZIP with `python scripts/generate_logo_pack.py`; both generators support `--check`.
 
 ## Local checks
 

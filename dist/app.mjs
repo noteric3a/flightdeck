@@ -15,6 +15,7 @@ import { layoutPreset, upgradeJourneyDraft, upgradeLegacyDraft } from "./presets
 import { journeyState, remainingText } from "./journey.mjs";
 import { FlightdeckSerial, LivePreview } from "./serial.mjs";
 import { encodeLayout, decodeLayout } from "./device-codec.mjs";
+import { upgradeDisplayAssets } from "./asset-upgrades.mjs";
 
 const $ = (id) => document.getElementById(id);
 const sampleEpoch = Date.now() / 1000;
@@ -86,6 +87,13 @@ try {
   }
 } catch {
   notify("Saved draft could not be loaded. The default layout is ready.");
+}
+const assetUpgrade = upgradeDisplayAssets(config, defaults);
+config = assetUpgrade.config;
+if (assetUpgrade.changed) {
+  dirty = true;
+  persist();
+  notify("Bundled logos and display colors updated. Save to ESP32 to apply.");
 }
 selected = config.layout.elements[0].id;
 $("preset").value = JSON.stringify(config.layout.elements) === JSON.stringify(defaults.layout.elements) ? "journey" : "custom";
@@ -796,9 +804,10 @@ function populateSettings() {
 }
 async function loadBoardLayout() {
   await preview.stop(); $("live-preview").checked = false;
-  const next = decodeLayout(await device.downloadLayout());
-  checkpoint(); config = next; selected = config.layout.elements[0].id; dirty = false;
+  const upgrade = upgradeDisplayAssets(decodeLayout(await device.downloadLayout()), defaults);
+  checkpoint(); config = upgrade.config; selected = config.layout.elements[0].id; dirty = upgrade.changed;
   persist(); renderFilters(); render();
+  if (dirty) notify("Bundled logos and display colors updated. Save to ESP32 to apply.");
 }
 async function finishConnection(info) {
   deviceInfo = info; connected = device;
@@ -817,7 +826,7 @@ $("connection-open").onclick = async () => {
     const info = await device.choose();
     await finishConnection(info);
     $("connection-dialog").showModal();
-    notify("ESP32 connected over USB. Enable Live on matrix to preview edits.");
+    notify(dirty ? "ESP32 connected. Save to ESP32 to apply your updated layout." : "ESP32 connected over USB. Enable Live on matrix to preview edits.");
   } catch (error) { await device.close(); notify(error.name === "NotFoundError" ? "No USB port selected." : error.message); }
   finally { connecting = false; await refresh(); }
 };
@@ -850,7 +859,7 @@ $("live-preview").onchange = async () => {
   } catch (error) { $("live-preview").checked = false; notify(error.message); }
 };
 $("load-board-layout").onclick = async () => {
-  try { await loadBoardLayout(); await refresh(); notify("Saved ESP32 layout loaded. Undo restores your prior draft."); }
+  try { await loadBoardLayout(); await refresh(); notify(dirty ? "Board layout loaded with corrected logos and colors. Save to ESP32 to apply." : "Saved ESP32 layout loaded. Undo restores your prior draft."); }
   catch (error) { notify(error.message); }
 };
 $("forget-credentials").onclick = async () => {

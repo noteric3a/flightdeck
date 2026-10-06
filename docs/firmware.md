@@ -47,6 +47,6 @@ The embedded certificate bundle comes from certifi's Mozilla public trust anchor
 
 Settings are stored in unencrypted NVS. API keys/passwords never appear in status responses. The request counter has its own namespace and survives settings changes/credential removal. Full flash erase resets all state.
 
-## Preserved test
+## Standalone offline test
 
-`firmware/examples/offline-demo/main.cpp` is the exact offline demo from the supplied archive. It is outside `src/`, so it cannot define a second `setup()`/`loop()` in the normal build. The uploaded backup sketches are also retained in `firmware/backup/`. The current firmware has its own offline demo and normally does not require swapping source files to test the panel.
+`firmware/examples/offline-demo/main.cpp` is based on the supplied working demo. Its logo bitmaps, RGB565 palettes and aircraft/plane colors now come from `firmware/include/offline_logo_data.h`, generated from the same Studio defaults as the autonomous firmware. Keep that header available when building the example. The sketch is outside `src/`, so it cannot define a second `setup()`/`loop()` in the normal build. The uploaded backup sketches remain in `firmware/backup/`. The current firmware has its own offline demo and normally does not require swapping source files to test the panel.

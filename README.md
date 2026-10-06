@@ -36,7 +36,7 @@ First-time serial access requires the browser's device picker. A single previous
 - Credential persistence in NVS; checksummed layout storage with a previous-copy fallback in LittleFS.
 - A 4-second USB preview lease: the saved autonomous layout resumes when preview traffic stops.
 - Bounded JSON/USB buffers, CRC-checked transfers, HTTPS trust roots, request caps, and Retry-After cooldowns.
-- An offline demo with the PHL → ORD sample and the user's blue accents. The exact uploaded demo is also preserved in `firmware/examples/offline-demo/main.cpp`.
+- An offline demo with the PHL → ORD sample, a light-blue aircraft label and plane, and corrected United/Delta/Southwest palettes. The standalone sketch in `firmware/examples/offline-demo/main.cpp` uses the same generated logo data.
 
 ## Provider limits and credentials
 

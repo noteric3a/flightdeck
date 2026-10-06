@@ -77,10 +77,11 @@ export function upgradeJourneyDraft(draft, defaults, replaceFactory = true) {
     [e.x, e.y, e.width, e.height, e.visible] = previousJourneyGeometry[e.field];
   const factories = [previousJourney, ...["classic", "large"].map((choice) =>
     layoutPreset(defaults, choice).filter((e) => !journeyFields.includes(e.field)))];
-  // Recognize shipped cyan factory layouts after the hardware default moved to blue.
-  factories.push(...factories.map(elements => elements.map(e => ({...e,
-    color: e.color === "#0000ff" ? "#50c8ff" : e.color,
-  }))));
+  // Recognize both earlier factory palettes after aircraft/plane became light blue.
+  const blueFields = ['logo', 'airline', 'aircraft', 'progress'];
+  factories.push(...factories.flatMap(elements => ['#0000ff', '#50c8ff'].map(color =>
+    elements.map(e => ({...e, color: blueFields.includes(e.field) ? color : e.color}))
+  )));
   const matchesFactory = factories.some((old) => {
     return next.layout.elements.length === old.length &&
       next.layout.elements.every((e, i) => Object.keys(old[i]).every((key) => e[key] === old[i][key]));

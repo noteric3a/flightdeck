@@ -37,11 +37,12 @@ test('native ESP32 renderer exactly matches Studio for presets, all fields, miss
     const custom=clone(defaults);custom.logos.UAL={width:2,height:2,pixels:[null,'#fb3162','#0012ff',null]};variants.push(custom);
     for(const [index,c] of variants.entries()) {
       const layoutFile=path.join(dir,'layout.bin'),frameFile=path.join(dir,'frame.bin');fs.writeFileSync(layoutFile,encodeLayout(c));
-      for(const scenario of index<5?[0,1,2,3,4,5,6,7]:[0,1]) {
+      for(const scenario of index<5?[0,1,2,3,4,5,6,7,8,9,10]:[0,1]) {
         let f={icao24:'UAL-test-id',callsign:'UAL247',airline_code:'UAL',airline_name:'United Air',departure_airport:'PHL',arrival_airport:'ORD',aircraft_type:'B787-9',altitude_ft:35000,speed_knots:430,distance_km:45,heading:90,vertical_rate_fpm:-1.5,departure_time:1700000000,arrival_time:1700043200};
         if(scenario===1) f={callsign:'N625EC',airline_code:'PVT'};
         if(scenario===2||scenario===3) f=null;
         if(scenario>=4) Object.assign(f,{departure_time:null,arrival_time:null,progress_percent:scenario===4?0:scenario===5?100:50});
+        if(scenario>=8) f.airline_code=scenario===8?'DAL':scenario===9?'SWA':'AAL';
         execFileSync(exe,[layoutFile,frameFile,String(scenario)]);
         const status=scenario===2||scenario===7?'stale':'fresh';
         assert.deepEqual(fs.readFileSync(frameFile),Buffer.from(rgb565(renderPixels(c,f,font,status,1700021600))),`variant ${index}, scenario ${scenario}`);

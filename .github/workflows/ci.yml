@@ -19,6 +19,7 @@ jobs:
       - run: pytest -q
       - run: node --test tests/*.test.mjs
       - run: node scripts/generate_device_assets.mjs --check
+      - run: python scripts/generate_logo_pack.py --check
       - run: docker build -t flightdeck:test .
   firmware:
     runs-on: ubuntu-latest

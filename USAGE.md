@@ -53,6 +53,8 @@ Secrets are cleared from the form after a successful save or closing the dialog.
 - **Load board layout** reads the saved configuration back. Undo restores the previous draft if needed. Readback has RGB565 panel color precision; **Export layout** from the original draft preserves its original 24-bit colors.
 - Layout JSON import/export, undo/redo and browser draft saving remain available offline. A dirty in-session draft is preserved when connecting; otherwise the board's saved layout is loaded.
 
+After updating to the corrected airline assets, refresh Studio and connect the board. Studio recognizes the older factory United, Delta and Southwest bitmaps in browser drafts and board readbacks, updates their pixels, and changes the factory aircraft/plane colors to light blue. Click **Save to ESP32** to persist the corrections. Geometry, filters and custom uploads are preserved. If you use a custom logo that also needs replacing, select that airline and click **Use bundled pixel logo** before saving. Reflashing alone keeps any previously saved layout; a fresh board uses the corrected defaults immediately.
+
 If Studio closes, USB is unplugged, or a background tab stops sending preview frames, the board resumes its saved layout after four seconds. Keep external power connected if you want it to continue running after unplugging USB.
 
 Studio's sample/selected-flight preview and the board's autonomous rotation are distinct: Live on matrix mirrors your selected preview; autonomous mode rotates the board's eligible flights. The table refresh button reads cached board status; it does not trigger additional billable calls.

@@ -133,5 +133,5 @@ inline uint16_t logoColor(const char* airline, uint8_t index) {
   if (!std::strcmp(airline, "SWA")) return index < sizeof(PALETTE_SWA)/sizeof(uint16_t) ? PALETTE_SWA[index] : 0;
   return 0xffff;
 }
-static const uint16_t kDemoAircraftColor = 0x85ff;
-static const uint16_t kDemoPlaneColor = 0x85ff;
+static const uint16_t kDemoAircraftColor = 0xf800;
+static const uint16_t kDemoPlaneColor = 0xf800;

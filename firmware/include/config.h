@@ -3,16 +3,19 @@
 // Generic development-board profiles. A matrix controller may use different pins.
 // Set every pin to match the controller schematic before connecting a panel.
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
+// The Waveshare ESP32-S3-RGB-Matrix panel has green and blue swapped relative
+// to the HUB75 library defaults (G=5/15, B=6/16), so they are exchanged here.
 #define PIN_R1 4
-#define PIN_G1 5
-#define PIN_B1 6
+#define PIN_G1 6
+#define PIN_B1 5
 #define PIN_R2 7
-#define PIN_G2 15
-#define PIN_B2 16
+#define PIN_G2 16
+#define PIN_B2 15
 #define PIN_A 18
 #define PIN_B 8
 #define PIN_C 3
 #define PIN_D 42
+#define PIN_E 9
 #define PIN_CLK 41
 #define PIN_LAT 40
 #define PIN_OE 2

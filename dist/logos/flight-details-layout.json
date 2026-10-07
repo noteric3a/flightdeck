@@ -115,7 +115,7 @@
         "height": 5,
         "scale": 1,
         "visible": true,
-        "color": "#80bfff"
+        "color": "#ff0000"
       },
       {
         "id": "eta",
@@ -137,7 +137,7 @@
         "height": 7,
         "scale": 1,
         "visible": true,
-        "color": "#80bfff"
+        "color": "#ff0000"
       }
     ]
   },

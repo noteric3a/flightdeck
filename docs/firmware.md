@@ -8,13 +8,13 @@
 
 | HUB75 signal | Waveshare S3 profile | Generic ESP32 profile |
 | --- | --- | --- |
-| R1 / G1 / B1 | 4 / 5 / 6 | 25 / 26 / 27 |
-| R2 / G2 / B2 | 7 / 15 / 16 | 14 / 12 / 13 |
+| R1 / G1 / B1 | 4 / 6 / 5 | 25 / 26 / 27 |
+| R2 / G2 / B2 | 7 / 16 / 15 | 14 / 12 / 13 |
 | A / B / C / D | 18 / 8 / 3 / 42 | 23 / 19 / 5 / 17 |
 | E | 9 | Unused |
 | LAT / OE / CLK | 40 / 2 / 41 | 4 / 15 / 16 |
 
-One 64 × 32 matrix, 1/16 scan, is supported by the renderer. The library receives E=9 on Waveshare to preserve the tested configuration even though that line is unused on a typical 32-row panel. Use a common ground and an appropriate external 5 V matrix supply. Brightness defaults to 25/255. DMA uses double buffering and six-bit driver color depth to leave room for TLS; payload colors remain RGB565.
+One 64 × 32 matrix, 1/16 scan, is supported by the renderer. The Waveshare profile passes the pins in `include/config.h` explicitly; green and blue are exchanged relative to the library's S3 defaults because the panel otherwise shows blue as green. The library receives E=9 on Waveshare to preserve the tested configuration even though that line is unused on a typical 32-row panel. Use a common ground and an appropriate external 5 V matrix supply. Brightness defaults to 25/255. DMA uses double buffering and six-bit driver color depth to leave room for TLS; payload colors remain RGB565.
 
 ## Build and upload
 

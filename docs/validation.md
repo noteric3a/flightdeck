@@ -1,5 +1,23 @@
 # Validation — autonomous ESP32 + USB Studio
 
+## Nearby-location update — 2026-11-18
+
+Validated on macOS arm64 using Python 3.12.14 for service tests, Node 24.22.1, Playwright 1.62.1 / Chromium 151, and PlatformIO 6.1.18 with the pinned firmware dependencies. PlatformIO ran in a separate Python 3.14.5 environment. The bundled Node directory was added to `PATH` for commands that invoke Node from Python.
+
+| Check | Result |
+| --- | --- |
+| `python -m pytest -q` | 75 passed; one existing Starlette test-client deprecation warning |
+| `node --test tests/*.test.mjs` | 26 passed, including native renderer parity with sanitizers and five browser-location unit tests |
+| `python scripts/test_device_provider.py` | Passed with sanitizers; includes radius perimeter coverage at ordinary/high latitudes, pole/date-line crossings, and the 85-degree latitude regression |
+| `STUDIO_URL=http://localhost:8875 node tests/studio.browser.mjs` | Passed with simulated Web Serial and geolocation: no startup location prompt, denied permission fallback, successful fix, retained filter edits, undo/redo, and saved coordinates/radius in the USB layout |
+| `pio run -d firmware -e esp32s3 -e esp32dev` | Both firmware profiles built successfully |
+| Generated assets | `node scripts/generate_device_assets.mjs --check` and `python scripts/generate_logo_pack.py --check` passed |
+| `git diff --check` | Passed |
+
+The browser screenshot was inspected for the location control and filter layout. Browser location results and aircraft were simulated. No physical panel was flashed, real geolocation permission was granted, or paid FlightAware request was made. The hardware/account acceptance checks below remain necessary.
+
+## Earlier autonomous-firmware validation
+
 Validation performed on 2026-10-03, using the uploaded working project and preserving the existing upstream PHL → ORD sample-route update.
 
 | Check | Result |

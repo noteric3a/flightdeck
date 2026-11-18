@@ -24,7 +24,8 @@ Studio is a static browser app. Its optional local launcher serves editor files 
 1. Flash the updated firmware once: `pio run -d firmware -e esp32s3 -t upload`. This default profile retains the uploaded **Waveshare ESP32-S3 RGB Matrix N32R16** configuration. Confirm your board before choosing a different profile.
 2. Close PlatformIO Serial Monitor. Run `python3 scripts/studio.py`, then open the printed localhost URL in desktop **Chrome or Edge**.
 3. Click **Connect ESP32**, select its serial port, and enter your 2.4 GHz Wi-Fi settings. Choose **Offline demo** first, or provide an AeroAPI key and select **Live FlightAware**.
-4. Enable **Live on matrix** to mirror your edits, including sample flights. Click **Save to ESP32** to keep the layout and filters in flash and resume autonomous display.
+4. In **Flight filters**, click **Use my location** while your computer is near the matrix, allow browser location access, and choose a search radius. Click **Apply filters**, then **Save to ESP32**. The board searches around that saved location and displays nearby flights, nearest first by default.
+5. Enable **Live on matrix** to mirror your edits, including sample flights. Click **Save to ESP32** to keep the layout and filters in flash and resume autonomous display.
 
 First-time serial access requires the browser's device picker. A single previously authorized matching USB port can reconnect automatically. Safari and Firefox do not provide the required Web Serial support; the UI explains this rather than pretending to connect.
 

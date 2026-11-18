@@ -61,7 +61,19 @@ Studio's sample/selected-flight preview and the board's autonomous rotation are 
 
 ## 5. Live data behavior
 
+### Set the nearby search area
+
+In **Flight filters**, click **Use my location** on a computer near your display. Studio asks the browser for one fresh location fix only when you click; it does not continuously track you. Review the coordinates and reported accuracy, choose your **Search radius** (1–250 km), and keep **Nearest first** to display the closest matching aircraft first. Manual latitude/longitude entry remains available if permission is denied, location is unavailable, or the panel is somewhere else.
+
+Location access requires localhost or HTTPS and browser/OS permission. A successful fix fills the coordinate fields without discarding other filter edits. Click **Apply filters**, then **Save to ESP32** to persist the new center and radius. Without a connected board, these changes remain in the Studio draft until you connect and save. The ESP32 then uses the fixed saved center independently of the computer; repeat this setup if you move the display. The board does not have GPS or automatically locate itself over Wi-Fi.
+
+Select **Live FlightAware** in ESP32 settings and provide Wi-Fi and your AeroAPI key for real aircraft. Offline demo and USB sample preview continue to use simulated flights even after choosing a real location.
+
+### Fetch, filter and render
+
 The ESP32 requests `GET /flights/search?max_pages=1&query=...` from `https://aeroapi.flightaware.com/aeroapi` with the `x-apikey` header. The query bounds your location; exact radius, age, altitude, speed, callsign and airline filtering runs on the board. Flights are sorted by distance or altitude.
+
+The search box uses spherical bounds consistent with the board's distance calculation, including high latitudes. Exact circular filtering removes aircraft in the box's corners. Pole-crossing and date-line-crossing circles use the existing full-longitude search policy.
 
 The search response supplies position, route and aircraft type. Altitude is converted from FlightAware's hundreds of feet into feet. It does not supply a numeric vertical rate, so that field stays `--`. Search is airborne-only; the ground-aircraft checkbox is unavailable in live mode and works in demo mode.
 
@@ -85,6 +97,7 @@ HTTP 429 honors `Retry-After` (seconds or HTTP date), at least five minutes and 
 | Waiting for NTP | Network permits DNS and NTP; HTTPS waits for a trustworthy clock |
 | API access denied | Valid AeroAPI key and account access to flight search; a normal website login is not an API key |
 | No matching flights | Correct latitude/longitude, radius and filters; one-page limit; position freshness |
+| Use my location fails | Open Studio on localhost/HTTPS, allow browser/OS location access, or enter the matrix's coordinates manually |
 | ETA missing | No provider estimate yet, not yet enriched, detail lookup failed or request cap reached |
 | Board did not keep an edit | Save to ESP32, then check for a success message; preview alone is temporary |
 | Data stops after editing | Leave board in Live mode and retain external power; read feed status for cap/cooldown |

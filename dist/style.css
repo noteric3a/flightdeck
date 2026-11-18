@@ -496,6 +496,9 @@ canvas {
   flex-direction: column;
   gap: 17px;
 }
+.filters-body > .panel-note {
+  margin: -7px 0 0;
+}
 label {
   display: flex;
   flex-direction: column;

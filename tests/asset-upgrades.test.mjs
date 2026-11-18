@@ -29,7 +29,7 @@ test('saved factory assets upgrade at RGB888 and board RGB565 precision, preserv
     for (const code of ['UAL', 'DAL', 'SWA']) assert.deepEqual(config.logos[code], defaults.logos[code]);
     assert.deepEqual(config.filters, old.filters);
     assert.deepEqual(config.layout.elements.map(({color, ...e}) => e), old.layout.elements.map(({color, ...e}) => e));
-    for (const e of config.layout.elements.filter(e => ['aircraft', 'progress'].includes(e.field))) assert.equal(e.color, '#80bfff');
+    for (const e of config.layout.elements.filter(e => ['aircraft', 'progress'].includes(e.field))) assert.equal(e.color, defaults.layout.elements.find(layer => layer.field === e.field).color);
     assert.equal(upgradeDisplayAssets(decodeLayout(encodeLayout(config)), defaults).changed, false);
   }
   assert.deepEqual(source, original);
@@ -45,5 +45,5 @@ test('custom uploads, absent logos, and custom layer colors survive factory corr
   assert.deepEqual(upgradeDisplayAssets(source, defaults), {config: source, changed: false});
   assert.equal(upgradeDisplayAssets(defaults, defaults).changed, false);
   source.layout.elements.find(e => e.field === 'aircraft').color = '#00ff00';
-  assert.equal(upgradeDisplayAssets(source, defaults).config.layout.elements.find(e => e.field === 'aircraft').color, '#80bfff');
+  assert.equal(upgradeDisplayAssets(source, defaults).config.layout.elements.find(e => e.field === 'aircraft').color, defaults.layout.elements.find(e => e.field === 'aircraft').color);
 });

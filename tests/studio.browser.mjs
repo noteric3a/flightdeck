@@ -13,6 +13,13 @@ const errors=[],requests=[];
 page.on('pageerror',e=>errors.push(e.message));
 page.on('request',r=>requests.push(r.url()));
 await page.addInitScript(({layout})=>{
+  const locationMock={calls:0,denied:true};
+  Object.defineProperty(navigator,'geolocation',{configurable:true,value:{getCurrentPosition(success,failure){
+    locationMock.calls++;
+    if(locationMock.denied) failure({code:1});
+    else success({coords:{latitude:40.42612345,longitude:-86.90912345,accuracy:35}});
+  }}});
+  window.locationMock=locationMock;
   const crc32=bytes=>{let crc=0xffffffff;for(const b of bytes){crc^=b;for(let i=0;i<8;i++)crc=(crc>>>1)^(0xedb88320&-(crc&1));}return (crc^0xffffffff)>>>0;};
   const mock={saved:Uint8Array.from(layout),mode:'demo',ssid:'',has_api_key:false,has_password:false,commands:[],frames:[],preview:false};
   const info=()=>({product:'flightdeck',protocol:2,width:64,height:32,clock:Date.now()/1000,panel_ready:true,storage_ready:true,mode:mock.mode,ssid:mock.ssid,has_api_key:mock.has_api_key,has_password:mock.has_password,poll_seconds:300,max_per_hour:24,requests_this_hour:0,wifi_connected:!!mock.ssid,ip:mock.ssid?'192.0.2.1':'',message:mock.mode==='demo'?'Demo mode':'Live FlightAware',preview:mock.preview,stale:false,flights:[{icao24:'UAL-test-id',callsign:'UAL247',airline_code:'UAL',airline_name:'United',latitude:40.5,longitude:-86.8,altitude_ft:35000,speed_knots:430,distance_km:15,heading:90,vertical_rate_fpm:null,on_ground:false,position_time:Date.now()/1000,departure_airport:'PHL',arrival_airport:'ORD',aircraft_type:'B787-9',departure_time:Date.now()/1000-3600,arrival_time:Date.now()/1000+3600,details_source:'sample'}]});
@@ -44,6 +51,24 @@ await page.addInitScript(({layout})=>{
 try {
   await page.goto(process.env.STUDIO_URL||'http://localhost:8765');
   await page.waitForFunction(()=>document.querySelectorAll('#layers .layer-row').length===12);
+  assert.equal(await page.evaluate(()=>window.locationMock.calls),0);
+  const initialLatitude=await page.inputValue('#latitude');
+  await page.click('#use-location');
+  await page.waitForFunction(()=>document.querySelector('#location-status').textContent.includes('permission denied'));
+  assert.equal(await page.inputValue('#latitude'),initialLatitude);
+  assert.equal(await page.isEnabled('#use-location'),true);
+  await page.evaluate(()=>window.locationMock.denied=false);
+  await page.locator('#radius').evaluate(input=>{input.value='75';input.dispatchEvent(new Event('input',{bubbles:true}));});
+  await page.fill('#min-speed','120');
+  await page.click('#use-location');
+  await page.waitForFunction(()=>document.querySelector('#location-status').textContent.includes('Location ready'));
+  assert.equal(await page.inputValue('#latitude'),'40.426123');
+  assert.equal(await page.inputValue('#longitude'),'-86.909123');
+  assert.equal(await page.inputValue('#radius'),'75');
+  assert.equal(await page.inputValue('#min-speed'),'120');
+  await page.click('#filters-form button[type=submit]');
+  await page.click('#undo');assert.equal(await page.inputValue('#latitude'),initialLatitude);
+  await page.click('#redo');assert.equal(await page.inputValue('#latitude'),'40.426123');
   await page.click('#connection-open');await page.waitForSelector('#connection-dialog[open]');
   await page.fill('#wifi-ssid','Flightdeck test network');await page.fill('#wifi-password','dummy-wifi-password');await page.fill('#aeroapi-key','dummy-api-key');await page.selectOption('#device-mode','live');
   await page.click('#connection-form button[type=submit]');await page.waitForFunction(()=>!document.querySelector('#connection-dialog').open);
@@ -54,6 +79,8 @@ try {
   await page.waitForFunction(()=>new Set(window.usbMock.frames).size>1);
   await page.click('#save');await page.waitForFunction(()=>document.querySelector('#save').textContent==='Saved to ESP32');
   const saved=decodeLayout(Uint8Array.from(await page.evaluate(()=>Array.from(window.usbMock.saved))));assert.equal(saved.layout.elements[0].x,5);
+  assert.equal(saved.filters.latitude,40.426123);assert.equal(saved.filters.longitude,-86.909123);
+  assert.equal(saved.filters.radius_km,75);assert.equal(saved.filters.min_speed_knots,120);
   assert.equal(await page.isChecked('#live-preview'),false);
   await page.click('#connection-open');await page.screenshot({path:'/tmp/flightdeck-studio-settings.png',fullPage:true});
   await page.click('#disconnect');await page.waitForFunction(()=>document.querySelector('#connection-open').textContent==='Connect ESP32');
@@ -62,5 +89,5 @@ try {
   await page.click('#connection-close');await page.screenshot({path:'/tmp/flightdeck-studio-editor.png',fullPage:true});
   assert.deepEqual(errors,[]);
   assert.equal(requests.some(url=>/\/api\//.test(url)),false);
-  console.log('Studio browser integration passed: USB connect/reconnect, provisioning, secret clearing, live edit, persisted layout, no backend API calls.');
+  console.log('Studio browser integration passed: one-shot location, permission fallback, filter undo/redo, USB connect/reconnect, provisioning, secret clearing, live edit, persisted layout/location, no backend API calls.');
 } finally {await browser.close();}

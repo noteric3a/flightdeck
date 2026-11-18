@@ -4,6 +4,27 @@
 #include "standalone.h"
 
 namespace flightdeck {
+struct SearchBounds { double latMin, lonMin, latMax, lonMax; };
+inline SearchBounds nearbyBounds(const Filters& f) {
+  const double rad = 3.141592653589793 / 180;
+  const double angular = f.radius / 6371;
+  const double latitude = f.latitude * rad;
+  SearchBounds box{std::max(-90.0, f.latitude-angular/rad), -180,
+                   std::min(90.0, f.latitude+angular/rad), 180};
+  if (box.latMin > -90 && box.latMax < 90) {
+    // The extremal longitude lies on a small circle, so the planar
+    // radius/cos(latitude) approximation can miss aircraft near the poles.
+    const double delta = asin(bounded(sin(angular)/cos(latitude), 0, 1))/rad;
+    const double low = f.longitude-delta, high = f.longitude+delta;
+    // Retain one full-longitude query when the circle crosses the date line.
+    if (low >= -180 && high <= 180) { box.lonMin=low; box.lonMax=high; }
+  }
+  // Queries use six decimal places. Round outwards so formatting never
+  // removes a point on the radius perimeter from the search rectangle.
+  box.latMin=floor(box.latMin*1e6)/1e6; box.lonMin=floor(box.lonMin*1e6)/1e6;
+  box.latMax=ceil(box.latMax*1e6)/1e6; box.lonMax=ceil(box.lonMax*1e6)/1e6;
+  return box;
+}
 inline double timestamp(const char* s) {
   if (!s || strlen(s) != 20 || s[19] != 'Z') return NAN;
   struct tm t{};

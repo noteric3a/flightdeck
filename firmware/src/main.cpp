@@ -384,16 +384,12 @@ void networkTask(void*) {
       // The bounding box contains the radius. Haversine filtering below removes
       // its corners. A dateline crossing uses full longitude (one capped page).
       //
-      // In plain terms: build a rectangle on the map around your location
-      // (1 degree of latitude is about 111 km). Flights in the rectangle's
-      // corners, outside the actual circle, get removed later.
-      double delta=f.radius/111.0, latMin=std::max(-90.0,f.latitude-delta),latMax=std::min(90.0,f.latitude+delta);
-      double lonDelta=delta/std::max(0.001,cos(f.latitude*3.141592653589793/180));
-      double lonMin=f.longitude-lonDelta,lonMax=f.longitude+lonDelta;
-      if(lonMin < -180 || lonMax > 180 || latMin<=-90 || latMax>=90) {lonMin=-180;lonMax=180;}
+      // Build a spherical rectangle around the saved location. Flights in
+      // its corners, outside the actual circle, get removed later.
+      const auto box=nearbyBounds(f);
       // Turn the rectangle (plus optional callsign/airline filters) into a
       // FlightAware search query.
-      char query[200];snprintf(query,sizeof(query),"-latlong \"%.6f %.6f %.6f %.6f\"",latMin,lonMin,latMax,lonMax);
+      char query[200];snprintf(query,sizeof(query),"-latlong \"%.6f %.6f %.6f %.6f\"",box.latMin,box.lonMin,box.latMax,box.lonMax);
       String search(query);
       if(f.callsign[0] && !strchr(f.callsign,' ')) search+=" -idents *"+String(f.callsign)+"*";
       if(f.airlineCount==1) search+=" -airline "+String(f.airlines[0]);

@@ -16,6 +16,7 @@ import { journeyState, remainingText } from "./journey.mjs";
 import { FlightdeckSerial, LivePreview } from "./serial.mjs";
 import { encodeLayout, decodeLayout } from "./device-codec.mjs";
 import { upgradeDisplayAssets } from "./asset-upgrades.mjs";
+import { currentLocation } from "./location.mjs";
 
 const $ = (id) => document.getElementById(id);
 const sampleEpoch = Date.now() / 1000;
@@ -617,6 +618,31 @@ setInterval(() => {
 $("refresh").onclick = refresh;
 $("radius").oninput = () =>
   ($("radius-value").textContent = $("radius").value + " km");
+$("use-location").onclick = async () => {
+  const button = $("use-location"), status = $("location-status");
+  const previousLatitude = $("latitude").value, previousLongitude = $("longitude").value;
+  button.disabled = true;
+  button.textContent = "Finding location…";
+  status.hidden = false;
+  status.textContent = "Waiting for your browser's location permission…";
+  try {
+    const location = await currentLocation();
+    // Preserve manual coordinate edits made while the location fix was pending.
+    if ($("latitude").value !== previousLatitude || $("longitude").value !== previousLongitude) {
+      status.textContent = "Coordinates changed while locating. Your entries were kept; use location again to replace them.";
+      return;
+    }
+    $("latitude").value = location.latitude;
+    $("longitude").value = location.longitude;
+    const accuracy = location.accuracy == null ? "" : ` (accuracy about ${Math.max(1, Math.round(location.accuracy))} m)`;
+    status.textContent = `Location ready${accuracy}. Apply filters, then Save to ESP32 to use it on your display.`;
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Use my location";
+  }
+};
 $("filters-form").onsubmit = (event) => {
   event.preventDefault();
   const f = {
